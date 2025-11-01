@@ -15,7 +15,14 @@ import Chores from "./pages/Chores";
 import Incidents from "./pages/Incidents";
 import Resources from "./pages/Resources";
 import Settings from "./pages/Settings";
+import Intake from "./pages/Intake";
+import CRM from "./pages/CRM";
+import CRMContactDetail from "./pages/CRMContactDetail";
+import CRMReferrals from "./pages/CRMReferrals";
 import NotFound from "./pages/NotFound";
+
+const ENABLE_INTAKE = import.meta.env.VITE_ENABLE_INTAKE === 'true';
+const ENABLE_CRM = import.meta.env.VITE_ENABLE_CRM === 'true';
 
 const queryClient = new QueryClient();
 
@@ -37,6 +44,16 @@ const App = () => (
           <Route path="/incidents" element={<MainLayout><Incidents /></MainLayout>} />
           <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
           <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
+          {ENABLE_INTAKE && (
+            <Route path="/intake" element={<MainLayout><Intake /></MainLayout>} />
+          )}
+          {ENABLE_CRM && (
+            <>
+              <Route path="/crm" element={<MainLayout><CRM /></MainLayout>} />
+              <Route path="/crm/contacts/:id" element={<MainLayout><CRMContactDetail /></MainLayout>} />
+              <Route path="/crm/referrals" element={<MainLayout><CRMReferrals /></MainLayout>} />
+            </>
+          )}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

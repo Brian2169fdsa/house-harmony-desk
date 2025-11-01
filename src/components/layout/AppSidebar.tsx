@@ -10,6 +10,8 @@ import {
   BookOpen,
   Settings,
   Home,
+  UserPlus,
+  Briefcase,
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,7 +24,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
+const ENABLE_INTAKE = import.meta.env.VITE_ENABLE_INTAKE === 'true';
+const ENABLE_CRM = import.meta.env.VITE_ENABLE_CRM === 'true';
+
+const baseMenuItems = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
   { title: "Houses", url: "/houses", icon: Home },
   { title: "Residents", url: "/residents", icon: Users },
@@ -33,6 +38,16 @@ const menuItems = [
   { title: "Incidents", url: "/incidents", icon: AlertTriangle },
   { title: "Resources", url: "/resources", icon: BookOpen },
   { title: "Settings", url: "/settings", icon: Settings },
+];
+
+const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
+const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
+
+const menuItems = [
+  ...baseMenuItems.slice(0, 3), // Overview, Houses, Residents
+  ...(ENABLE_INTAKE ? [intakeItem] : []),
+  ...(ENABLE_CRM ? [crmItem] : []),
+  ...baseMenuItems.slice(3), // Rest of the menu
 ];
 
 export function AppSidebar() {
