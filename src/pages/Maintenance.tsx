@@ -2,172 +2,185 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Wrench } from "lucide-react";
-import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Wrench, Phone, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { NewRequestDialog } from "@/components/maintenance/NewRequestDialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-type MaintenanceRequest = {
-  id: string;
-  house_id: string;
-  service_id: string;
-  vendor_id: string | null;
-  title: string;
-  description: string | null;
-  priority: "low" | "medium" | "high";
-  status: "pending" | "in_progress" | "complete" | "canceled";
-  requested_for_at: string | null;
-  contact_phone: string | null;
-  created_at: string;
-  houses: { name: string };
-  services: { name: string; category: string };
-  vendors: { name: string; phone: string; discount_pct: number } | null;
-};
-
-type Vendor = {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  discount_pct: number;
-  is_trusted: boolean;
-  active: boolean;
-};
+import { format } from "date-fns";
 
 export default function Maintenance() {
-  const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    houseId: "",
+    serviceId: "",
+    title: "",
+    description: "",
+    priority: "medium",
+    requestedForAt: "",
+  });
 
-  const { data: requests = [], isLoading } = useQuery({
-    queryKey: ["maintenance-requests"],
+  // Fetch houses
+  const { data: houses } = useQuery({
+    queryKey: ["houses"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_requests")
-        .select(`
-          *,
-          houses(name),
-          services(name, category),
-          vendors(name, phone, discount_pct)
-        `)
-        .order("created_at", { ascending: false });
-
+      const { data, error } = await supabase.from("houses").select("*");
       if (error) throw error;
-      return data as MaintenanceRequest[];
+      return data;
     },
   });
 
-  const { data: vendors = [] } = useQuery({
+  // Fetch services
+  const { data: services } = useQuery({
+    queryKey: ["services"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("services").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch vendors with services
+  const { data: vendors } = useQuery({
     queryKey: ["vendors"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("vendors")
-        .select("*")
-        .eq("active", true)
-        .order("name");
-
+        .select("*, vendor_services(service_id)")
+        .eq("active", true);
       if (error) throw error;
-      return data as Vendor[];
+      return data;
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: "pending" | "in_progress" | "complete" | "canceled";
-    }) => {
-      const updates: any = { status };
-      if (status === "complete") {
-        updates.completed_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
+  // Fetch maintenance requests with relations
+  const { data: maintenanceRequests } = useQuery({
+    queryKey: ["maintenanceRequests"],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("maintenance_requests")
-        .update(updates)
-        .eq("id", id);
+        .select("*, houses(name), services(name), vendors(name, phone, discount_pct)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
 
+  // Auto-select vendor when service changes
+  const selectedVendor = formData.serviceId
+    ? vendors?.find((v) =>
+        v.vendor_services?.some(
+          (vs: any) => vs.service_id === formData.serviceId && v.is_trusted
+        )
+      )
+    : null;
+
+  // Create maintenance request mutation
+  const createRequest = useMutation({
+    mutationFn: async (data: any) => {
+      const { error } = await supabase.from("maintenance_requests").insert([data]);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["maintenance-requests"] });
-      toast({ title: "Request updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["maintenanceRequests"] });
+      toast({ title: "Maintenance request created" });
+      setDialogOpen(false);
+      setFormData({
+        houseId: "",
+        serviceId: "",
+        title: "",
+        description: "",
+        priority: "medium",
+        requestedForAt: "",
+      });
     },
     onError: () => {
-      toast({
-        title: "Error updating request",
-        variant: "destructive",
-      });
+      toast({ title: "Failed to create request", variant: "destructive" });
     },
   });
 
-  const pendingRequests = requests.filter((r) => r.status === "pending");
-  const scheduledRequests = requests.filter(
-    (r) =>
-      (r.status === "pending" || r.status === "in_progress") &&
-      r.requested_for_at &&
-      new Date(r.requested_for_at) > new Date()
-  );
-  const completedRequests = requests.filter((r) => r.status === "complete");
+  // Update status mutation
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const updateData: any = { status };
+      if (status === "complete") {
+        updateData.completed_at = new Date().toISOString();
+      }
+      const { error } = await supabase
+        .from("maintenance_requests")
+        .update(updateData)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenanceRequests"] });
+      toast({ title: "Status updated" });
+    },
+  });
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive";
-      case "medium":
-        return "default";
-      case "low":
-        return "secondary";
-      default:
-        return "outline";
+  const handleSubmit = () => {
+    if (!formData.houseId || !formData.serviceId || !formData.title) {
+      toast({ title: "Please fill required fields", variant: "destructive" });
+      return;
     }
+    createRequest.mutate({
+      house_id: formData.houseId,
+      service_id: formData.serviceId,
+      vendor_id: selectedVendor?.id || null,
+      title: formData.title,
+      description: formData.description,
+      priority: formData.priority,
+      requested_for_at: formData.requestedForAt || null,
+      contact_phone: selectedVendor?.phone || null,
+    });
   };
 
-  const RequestCard = ({ request }: { request: MaintenanceRequest }) => (
-    <Card>
+  const pendingRequests = maintenanceRequests?.filter((r) => r.status === "pending") || [];
+  const scheduledRequests =
+    maintenanceRequests?.filter(
+      (r) =>
+        (r.status === "pending" || r.status === "in_progress") &&
+        r.requested_for_at &&
+        new Date(r.requested_for_at) > new Date()
+    ) || [];
+  const completedRequests = maintenanceRequests?.filter((r) => r.status === "complete") || [];
+
+  const renderRequestCard = (request: any) => (
+    <Card key={request.id} className="mb-4">
       <CardHeader>
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{request.houses.name}</Badge>
-              <Badge variant={getPriorityColor(request.priority)}>
-                {request.priority}
-              </Badge>
-            </div>
+          <div>
             <CardTitle className="text-lg">{request.title}</CardTitle>
+            <CardDescription>
+              <Badge variant="outline" className="mr-2">
+                {request.houses?.name}
+              </Badge>
+              {request.services?.name}
+            </CardDescription>
           </div>
+          <Badge
+            variant={
+              request.priority === "high"
+                ? "destructive"
+                : request.priority === "medium"
+                ? "default"
+                : "secondary"
+            }
+          >
+            {request.priority}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="text-sm">
-          <p className="font-medium">{request.services.name}</p>
-          {request.description && (
-            <p className="text-muted-foreground mt-1">{request.description}</p>
-          )}
-        </div>
-
         {request.vendors && (
           <div className="flex items-center gap-2 text-sm">
-            <p className="font-medium">{request.vendors.name}</p>
+            <span className="font-medium">{request.vendors.name}</span>
             {request.vendors.discount_pct > 0 && (
               <Badge variant="secondary" className="text-xs">
                 Trusted Partner · {request.vendors.discount_pct}% Discount
@@ -175,31 +188,26 @@ export default function Maintenance() {
             )}
           </div>
         )}
-
         {request.requested_for_at && (
-          <p className="text-sm text-muted-foreground">
-            Scheduled: {format(new Date(request.requested_for_at), "PPp")}
-          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            {format(new Date(request.requested_for_at), "PPp")}
+          </div>
         )}
-
-        {request.contact_phone && (
-          <a
-            href={`tel:${request.contact_phone}`}
-            className="flex items-center gap-2 text-sm text-primary hover:underline"
-          >
+        {request.vendors?.phone && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="h-4 w-4" />
-            {request.contact_phone}
-          </a>
+            <a href={`tel:${request.vendors.phone}`} className="underline">
+              {request.vendors.phone}
+            </a>
+          </div>
         )}
-
         <div className="flex items-center gap-2">
           <Select
             value={request.status}
-            onValueChange={(value: any) =>
-              updateStatusMutation.mutate({ id: request.id, status: value })
-            }
+            onValueChange={(value) => updateStatus.mutate({ id: request.id, status: value })}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -209,17 +217,12 @@ export default function Maintenance() {
               <SelectItem value="canceled">Canceled</SelectItem>
             </SelectContent>
           </Select>
-
           {request.status !== "complete" && (
             <Button
               size="sm"
-              onClick={() =>
-                updateStatusMutation.mutate({
-                  id: request.id,
-                  status: "complete",
-                })
-              }
+              onClick={() => updateStatus.mutate({ id: request.id, status: "complete" })}
             >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
               Mark Complete
             </Button>
           )}
@@ -228,126 +231,183 @@ export default function Maintenance() {
     </Card>
   );
 
-  const VendorsTable = () => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Vendor</TableHead>
-          <TableHead>Services</TableHead>
-          <TableHead>Discount</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Email</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {vendors.map((vendor) => (
-          <TableRow key={vendor.id}>
-            <TableCell className="font-medium">{vendor.name}</TableCell>
-            <TableCell>-</TableCell>
-            <TableCell>
-              {vendor.discount_pct > 0 && (
-                <Badge variant="secondary">{vendor.discount_pct}%</Badge>
-              )}
-            </TableCell>
-            <TableCell>
-              <a href={`tel:${vendor.phone}`} className="text-primary hover:underline">
-                {vendor.phone}
-              </a>
-            </TableCell>
-            <TableCell>{vendor.email}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Wrench className="h-6 w-6" />
-          <h1 className="text-3xl font-bold">Maintenance</h1>
+    <div className="container py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Wrench className="h-8 w-8" />
+            Maintenance
+          </h1>
+          <p className="text-muted-foreground">Manage maintenance requests and vendors</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>New Request</Button>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>New Request</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create Maintenance Request</DialogTitle>
+              <DialogDescription>Fill in the details for the new request</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="house">House *</Label>
+                <Select value={formData.houseId} onValueChange={(v) => setFormData({ ...formData, houseId: v })}>
+                  <SelectTrigger id="house">
+                    <SelectValue placeholder="Select house" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {houses?.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="service">Service *</Label>
+                <Select value={formData.serviceId} onValueChange={(v) => setFormData({ ...formData, serviceId: v })}>
+                  <SelectTrigger id="service">
+                    <SelectValue placeholder="Select service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedVendor && (
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  <div className="font-medium">Auto-selected Vendor:</div>
+                  <div>{selectedVendor.name}</div>
+                  {selectedVendor.discount_pct > 0 && (
+                    <Badge variant="secondary" className="mt-1">
+                      {selectedVendor.discount_pct}% Discount
+                    </Badge>
+                  )}
+                </div>
+              )}
+              <div>
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Brief description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Details about the issue"
+                />
+              </div>
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select value={formData.priority} onValueChange={(v) => setFormData({ ...formData, priority: v })}>
+                  <SelectTrigger id="priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="requestedTime">Requested Time</Label>
+                <Input
+                  id="requestedTime"
+                  type="datetime-local"
+                  value={formData.requestedForAt}
+                  onChange={(e) => setFormData({ ...formData, requestedForAt: e.target.value })}
+                />
+              </div>
+              <Button onClick={handleSubmit} className="w-full">
+                Create Request
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Tabs defaultValue="pending">
+      <Tabs defaultValue="pending" className="w-full">
         <TabsList>
           <TabsTrigger value="pending">Pending ({pendingRequests.length})</TabsTrigger>
           <TabsTrigger value="scheduled">Scheduled ({scheduledRequests.length})</TabsTrigger>
           <TabsTrigger value="completed">Completed ({completedRequests.length})</TabsTrigger>
           <TabsTrigger value="vendors">Vendors</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="pending" className="space-y-4 mt-6">
+        <TabsContent value="pending" className="mt-6">
           {pendingRequests.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
+              <CardContent className="py-12 text-center text-muted-foreground">
                 No pending requests
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {pendingRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
+            pendingRequests.map(renderRequestCard)
           )}
         </TabsContent>
-
-        <TabsContent value="scheduled" className="space-y-4 mt-6">
+        <TabsContent value="scheduled" className="mt-6">
           {scheduledRequests.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
+              <CardContent className="py-12 text-center text-muted-foreground">
                 No scheduled requests
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {scheduledRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
+            scheduledRequests.map(renderRequestCard)
           )}
         </TabsContent>
-
-        <TabsContent value="completed" className="space-y-4 mt-6">
+        <TabsContent value="completed" className="mt-6">
           {completedRequests.length === 0 ? (
             <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
+              <CardContent className="py-12 text-center text-muted-foreground">
                 No completed requests
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {completedRequests.map((request) => (
-                <RequestCard key={request.id} request={request} />
-              ))}
-            </div>
+            completedRequests.map(renderRequestCard)
           )}
         </TabsContent>
-
         <TabsContent value="vendors" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Trusted Partners</CardTitle>
+              <CardDescription>Vendors with active service agreements</CardDescription>
             </CardHeader>
             <CardContent>
-              <VendorsTable />
+              <div className="space-y-3">
+                {vendors
+                  ?.filter((v) => v.is_trusted)
+                  .map((vendor) => (
+                    <div key={vendor.id} className="flex items-center justify-between border-b pb-3">
+                      <div>
+                        <div className="font-medium">{vendor.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {vendor.phone} • {vendor.email}
+                        </div>
+                      </div>
+                      {vendor.discount_pct > 0 && (
+                        <Badge variant="secondary">{vendor.discount_pct}% Discount</Badge>
+                      )}
+                    </div>
+                  ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      <NewRequestDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }
