@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
+import FeatureGate from "./components/FeatureGate";
 import Overview from "./pages/Overview";
 import Houses from "./pages/Houses";
 import HouseDetail from "./pages/HouseDetail";
@@ -46,16 +47,10 @@ const App = () => (
           <Route path="/incidents" element={<MainLayout><Incidents /></MainLayout>} />
           <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
           <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
-          {isFeatureEnabled('ENABLE_INTAKE') && (
-            <Route path="/intake" element={<MainLayout><Intake /></MainLayout>} />
-          )}
-          {isFeatureEnabled('ENABLE_CRM') && (
-            <>
-              <Route path="/crm" element={<MainLayout><CRM /></MainLayout>} />
-              <Route path="/crm/contacts/:id" element={<MainLayout><CRMContactDetail /></MainLayout>} />
-              <Route path="/crm/referrals" element={<MainLayout><CRMReferrals /></MainLayout>} />
-            </>
-          )}
+          <Route path="/intake" element={<MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout>} />
+          <Route path="/crm" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout>} />
+          <Route path="/crm/contacts/:id" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout>} />
+          <Route path="/crm/referrals" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
