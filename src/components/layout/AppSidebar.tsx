@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   BookOpen,
   Settings,
+  Home,
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,6 +24,7 @@ import {
 
 const menuItems = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
+  { title: "Houses", url: "/houses", icon: Home },
   { title: "Residents", url: "/residents", icon: Users },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Notices", url: "/notices", icon: Bell },

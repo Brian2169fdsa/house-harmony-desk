@@ -1,14 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const kpis = [
-  {
-    title: "Occupancy",
-    value: "75%",
-    subtitle: "6 of 8 beds",
-    icon: Users,
-    trend: "+2 this month",
-  },
   {
     title: "Payment Success Rate",
     value: "92%",
@@ -40,6 +35,35 @@ const agingBuckets = [
 ];
 
 export default function Overview() {
+  const today = new Date();
+  const sevenDaysFromNow = new Date(today);
+  sevenDaysFromNow.setDate(today.getDate() + 7);
+
+  const { data: upcomingMoves } = useQuery({
+    queryKey: ["upcoming-moves"],
+    queryFn: async () => {
+      const todayStr = today.toISOString().split("T")[0];
+      const sevenDaysStr = sevenDaysFromNow.toISOString().split("T")[0];
+      
+      const { data, error } = await supabase
+        .from("residents")
+        .select("*")
+        .or(
+          `and(move_in_date.gte.${todayStr},move_in_date.lte.${sevenDaysStr}),and(move_out_date.gte.${todayStr},move_out_date.lte.${sevenDaysStr})`
+        );
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const moveIns = upcomingMoves?.filter(
+    (r) => r.move_in_date && new Date(r.move_in_date) >= today && new Date(r.move_in_date) <= sevenDaysFromNow
+  ) || [];
+  
+  const moveOuts = upcomingMoves?.filter(
+    (r) => r.move_out_date && new Date(r.move_out_date) >= today && new Date(r.move_out_date) <= sevenDaysFromNow
+  ) || [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -49,7 +73,33 @@ export default function Overview() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Occupancy
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">85%</div>
+            <p className="text-xs text-muted-foreground">23/27 beds filled</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Move-ins (7d)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{moveIns.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {moveOuts.length} move-outs
+            </p>
+          </CardContent>
+        </Card>
+
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">

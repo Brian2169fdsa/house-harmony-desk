@@ -14,7 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      beds: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          room_id: string
+          status: Database["public"]["Enums"]["bed_status"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          room_id: string
+          status?: Database["public"]["Enums"]["bed_status"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          room_id?: string
+          status?: Database["public"]["Enums"]["bed_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beds_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      houses: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          manager_id: string | null
+          name: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          manager_id?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      residents: {
+        Row: {
+          balance: number | null
+          bed_id: string | null
+          created_at: string
+          id: string
+          lease_end: string | null
+          lease_start: string | null
+          move_in_date: string | null
+          move_out_date: string | null
+          name: string
+          room: string | null
+          status: string | null
+        }
+        Insert: {
+          balance?: number | null
+          bed_id?: string | null
+          created_at?: string
+          id?: string
+          lease_end?: string | null
+          lease_start?: string | null
+          move_in_date?: string | null
+          move_out_date?: string | null
+          name: string
+          room?: string | null
+          status?: string | null
+        }
+        Update: {
+          balance?: number | null
+          bed_id?: string | null
+          created_at?: string
+          id?: string
+          lease_end?: string | null
+          lease_start?: string | null
+          move_in_date?: string | null
+          move_out_date?: string | null
+          name?: string
+          room?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "residents_bed_id_fkey"
+            columns: ["bed_id"]
+            isOneToOne: false
+            referencedRelation: "beds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string
+          house_id: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          house_id: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          house_id?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +157,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      bed_status: "available" | "held" | "occupied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +284,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      bed_status: ["available", "held", "occupied"],
+    },
   },
 } as const
