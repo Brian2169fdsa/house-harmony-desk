@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import FeatureGate from "./components/FeatureGate";
 import Overview from "./pages/Overview";
@@ -21,43 +21,100 @@ import CRM from "./pages/CRM";
 import CRMContactDetail from "./pages/CRMContactDetail";
 import CRMReferrals from "./pages/CRMReferrals";
 import Maintenance from "./pages/Maintenance";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
 
 const queryClient = new QueryClient();
 
-const isFeatureEnabled = (flag: string) => {
-  if (typeof window === 'undefined') return false;
-  return localStorage.getItem(flag) === 'true';
-};
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout><Overview /></MainLayout>} />
-          <Route path="/houses" element={<MainLayout><Houses /></MainLayout>} />
-          <Route path="/houses/:id" element={<MainLayout><HouseDetail /></MainLayout>} />
-          <Route path="/residents" element={<MainLayout><Residents /></MainLayout>} />
-          <Route path="/payments" element={<MainLayout><Payments /></MainLayout>} />
-          <Route path="/notices" element={<MainLayout><Notices /></MainLayout>} />
-          <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
-          <Route path="/chores" element={<MainLayout><Chores /></MainLayout>} />
-          <Route path="/incidents" element={<MainLayout><Incidents /></MainLayout>} />
-          <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
-          <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
-          <Route path="/intake" element={<MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout>} />
-          <Route path="/crm" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout>} />
-          <Route path="/crm/contacts/:id" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout>} />
-          <Route path="/crm/referrals" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout>} />
-          <Route path="/maintenance" element={<MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user || !session) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+const App = () => {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+            
+            <Route path="/" element={<ProtectedRoute><MainLayout><Overview /></MainLayout></ProtectedRoute>} />
+            <Route path="/houses" element={<ProtectedRoute><MainLayout><Houses /></MainLayout></ProtectedRoute>} />
+            <Route path="/houses/:id" element={<ProtectedRoute><MainLayout><HouseDetail /></MainLayout></ProtectedRoute>} />
+            <Route path="/residents" element={<ProtectedRoute><MainLayout><Residents /></MainLayout></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><MainLayout><Payments /></MainLayout></ProtectedRoute>} />
+            <Route path="/notices" element={<ProtectedRoute><MainLayout><Notices /></MainLayout></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><MainLayout><Messages /></MainLayout></ProtectedRoute>} />
+            <Route path="/chores" element={<ProtectedRoute><MainLayout><Chores /></MainLayout></ProtectedRoute>} />
+            <Route path="/incidents" element={<ProtectedRoute><MainLayout><Incidents /></MainLayout></ProtectedRoute>} />
+            <Route path="/resources" element={<ProtectedRoute><MainLayout><Resources /></MainLayout></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
+            <Route path="/intake" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout></ProtectedRoute>} />
+            <Route path="/crm" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout></ProtectedRoute>} />
+            <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
+            <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
+            <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

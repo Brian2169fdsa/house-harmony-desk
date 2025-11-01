@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,6 +18,15 @@ const STAGES = [
   { id: "esign", label: "E-sign", status: "esign" },
   { id: "movein", label: "Move-in", status: "movein" },
 ];
+
+const leadSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100, "Name too long"),
+  phone: z.string().trim().max(20),
+  email: z.string().trim().max(255).refine((val) => !val || z.string().email().safeParse(val).success, {
+    message: "Invalid email address"
+  }),
+  referral_source: z.string().trim().max(200)
+});
 
 export default function Intake() {
   const queryClient = useQueryClient();
@@ -41,7 +51,7 @@ export default function Intake() {
   });
 
   const createLeadMutation = useMutation({
-    mutationFn: async (lead: typeof newLead) => {
+    mutationFn: async (lead: any) => {
       const { data, error } = await supabase
         .from("intake_leads")
         .insert([lead])
@@ -117,7 +127,14 @@ export default function Intake() {
 
   const handleCreateLead = (e: React.FormEvent) => {
     e.preventDefault();
-    createLeadMutation.mutate(newLead);
+    
+    const result = leadSchema.safeParse(newLead);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    
+    createLeadMutation.mutate(result.data);
   };
 
   const getLeadsByStage = (status: string) => {

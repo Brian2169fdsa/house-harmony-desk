@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,13 @@ type VendorService = {
   preferred: boolean;
   vendors: Vendor;
 };
+
+const requestSchema = z.object({
+  house_id: z.string().uuid("Please select a house"),
+  service_id: z.string().uuid("Please select a service"),
+  title: z.string().trim().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(2000, "Description too long")
+});
 
 interface NewRequestDialogProps {
   open: boolean;
@@ -159,13 +167,16 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.house_id || !formData.service_id || !formData.title) {
+    
+    const result = requestSchema.safeParse(formData);
+    if (!result.success) {
       toast({
-        title: "Please fill in all required fields",
+        title: result.error.errors[0].message,
         variant: "destructive",
       });
       return;
     }
+    
     createRequestMutation.mutate(formData);
   };
 

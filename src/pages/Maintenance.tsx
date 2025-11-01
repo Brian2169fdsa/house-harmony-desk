@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Wrench, Phone, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+
+const maintenanceSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(200, "Title too long"),
+  description: z.string().max(2000, "Description too long").optional().or(z.literal("")),
+  priority: z.enum(["low", "medium", "high"]),
+  houseId: z.string().uuid("Invalid house selection"),
+  serviceId: z.string().uuid("Invalid service selection")
+});
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
@@ -125,10 +134,19 @@ export default function Maintenance() {
   });
 
   const handleSubmit = () => {
-    if (!formData.houseId || !formData.serviceId || !formData.title) {
-      toast({ title: "Please fill required fields", variant: "destructive" });
+    const result = maintenanceSchema.safeParse({
+      title: formData.title,
+      description: formData.description,
+      priority: formData.priority,
+      houseId: formData.houseId,
+      serviceId: formData.serviceId
+    });
+    
+    if (!result.success) {
+      toast({ title: result.error.errors[0].message, variant: "destructive" });
       return;
     }
+    
     createRequest.mutate({
       house_id: formData.houseId,
       service_id: formData.serviceId,
@@ -137,7 +155,6 @@ export default function Maintenance() {
       description: formData.description,
       priority: formData.priority,
       requested_for_at: formData.requestedForAt || null,
-      contact_phone: selectedVendor?.phone || null,
     });
   };
 
