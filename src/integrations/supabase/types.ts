@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          answers_json: Json | null
+          created_at: string
+          id: string
+          lead_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          answers_json?: Json | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          answers_json?: Json | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "intake_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beds: {
         Row: {
           created_at: string
@@ -46,6 +81,255 @@ export type Database = {
           },
         ]
       }
+      crm_activities: {
+        Row: {
+          body: string | null
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          due_at: string | null
+          id: string
+          org_id: string | null
+          subject: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          org_id?: string | null
+          subject: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_at?: string | null
+          id?: string
+          org_id?: string | null
+          subject?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_activities_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          org_id: string | null
+          owner_user_id: string | null
+          phone: string | null
+          resident_id: string | null
+          role: string | null
+          segment: string
+          source: string | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          org_id?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          resident_id?: string | null
+          role?: string | null
+          segment?: string
+          source?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          org_id?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          resident_id?: string | null
+          role?: string | null
+          segment?: string
+          source?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_contacts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "crm_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contacts_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_lists: {
+        Row: {
+          created_at: string
+          filter_json: Json | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          filter_json?: Json | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          filter_json?: Json | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_organizations: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          type: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          type?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          type?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      crm_referrals: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          intake_lead_id: string | null
+          notes: string | null
+          referred_email: string | null
+          referred_person_name: string
+          referred_phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          intake_lead_id?: string | null
+          notes?: string | null
+          referred_email?: string | null
+          referred_person_name: string
+          referred_phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          intake_lead_id?: string | null
+          notes?: string | null
+          referred_email?: string | null
+          referred_person_name?: string
+          referred_phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_referrals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_referrals_intake_lead_id_fkey"
+            columns: ["intake_lead_id"]
+            isOneToOne: false
+            referencedRelation: "intake_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       houses: {
         Row: {
           address: string
@@ -70,6 +354,87 @@ export type Database = {
         }
         Relationships: []
       }
+      intake_leads: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          referral_source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          referral_source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          referral_source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      offers: {
+        Row: {
+          bed_id: string | null
+          created_at: string
+          deposit_amount: number | null
+          expires_at: string | null
+          id: string
+          lead_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          bed_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          expires_at?: string | null
+          id?: string
+          lead_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          bed_id?: string | null
+          created_at?: string
+          deposit_amount?: number | null
+          expires_at?: string | null
+          id?: string
+          lead_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_bed_id_fkey"
+            columns: ["bed_id"]
+            isOneToOne: false
+            referencedRelation: "beds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "intake_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       residents: {
         Row: {
           balance: number | null
@@ -81,6 +446,7 @@ export type Database = {
           move_in_date: string | null
           move_out_date: string | null
           name: string
+          program_phase: string | null
           room: string | null
           status: string | null
         }
@@ -94,6 +460,7 @@ export type Database = {
           move_in_date?: string | null
           move_out_date?: string | null
           name: string
+          program_phase?: string | null
           room?: string | null
           status?: string | null
         }
@@ -107,6 +474,7 @@ export type Database = {
           move_in_date?: string | null
           move_out_date?: string | null
           name?: string
+          program_phase?: string | null
           room?: string | null
           status?: string | null
         }
