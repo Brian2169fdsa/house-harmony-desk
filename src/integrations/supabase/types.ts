@@ -387,6 +387,85 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_requests: {
+        Row: {
+          attachments: Json | null
+          completed_at: string | null
+          contact_phone: string | null
+          cost_estimate_cents: number | null
+          created_at: string
+          description: string | null
+          house_id: string
+          id: string
+          priority: string
+          requested_for_at: string | null
+          service_id: string
+          status: string
+          submitted_by_user_id: string | null
+          title: string
+          updated_at: string
+          vendor_id: string | null
+        }
+        Insert: {
+          attachments?: Json | null
+          completed_at?: string | null
+          contact_phone?: string | null
+          cost_estimate_cents?: number | null
+          created_at?: string
+          description?: string | null
+          house_id: string
+          id?: string
+          priority?: string
+          requested_for_at?: string | null
+          service_id: string
+          status?: string
+          submitted_by_user_id?: string | null
+          title: string
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Update: {
+          attachments?: Json | null
+          completed_at?: string | null
+          contact_phone?: string | null
+          cost_estimate_cents?: number | null
+          created_at?: string
+          description?: string | null
+          house_id?: string
+          id?: string
+          priority?: string
+          requested_for_at?: string | null
+          service_id?: string
+          status?: string
+          submitted_by_user_id?: string | null
+          title?: string
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_requests_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requests_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
           bed_id: string | null
@@ -516,6 +595,114 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      services: {
+        Row: {
+          category: string
+          default_sla_hours: number | null
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          category: string
+          default_sla_hours?: number | null
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string
+          default_sla_hours?: number | null
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      vendor_services: {
+        Row: {
+          coverage_city: string | null
+          coverage_zip: string | null
+          id: string
+          preferred: boolean | null
+          service_id: string
+          vendor_id: string
+        }
+        Insert: {
+          coverage_city?: string | null
+          coverage_zip?: string | null
+          id?: string
+          preferred?: boolean | null
+          service_id: string
+          vendor_id: string
+        }
+        Update: {
+          coverage_city?: string | null
+          coverage_zip?: string | null
+          id?: string
+          preferred?: boolean | null
+          service_id?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_services_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          discount_pct: number | null
+          email: string | null
+          id: string
+          is_trusted: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          discount_pct?: number | null
+          email?: string | null
+          id?: string
+          is_trusted?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          discount_pct?: number | null
+          email?: string | null
+          id?: string
+          is_trusted?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
