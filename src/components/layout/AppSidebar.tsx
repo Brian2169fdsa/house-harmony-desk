@@ -24,9 +24,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const ENABLE_INTAKE = import.meta.env.VITE_ENABLE_INTAKE === 'true';
-const ENABLE_CRM = import.meta.env.VITE_ENABLE_CRM === 'true';
-
 const baseMenuItems = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
   { title: "Houses", url: "/houses", icon: Home },
@@ -43,15 +40,18 @@ const baseMenuItems = [
 const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
 
-const menuItems = [
-  ...baseMenuItems.slice(0, 3), // Overview, Houses, Residents
-  ...(ENABLE_INTAKE ? [intakeItem] : []),
-  ...(ENABLE_CRM ? [crmItem] : []),
-  ...baseMenuItems.slice(3), // Rest of the menu
-];
-
 export function AppSidebar() {
   const { open } = useSidebar();
+  
+  const enableIntake = typeof window !== 'undefined' && localStorage.getItem("ENABLE_INTAKE") === "true";
+  const enableCRM = typeof window !== 'undefined' && localStorage.getItem("ENABLE_CRM") === "true";
+
+  const menuItems = [
+    ...baseMenuItems.slice(0, 3),
+    ...(enableIntake ? [intakeItem] : []),
+    ...(enableCRM ? [crmItem] : []),
+    ...baseMenuItems.slice(3),
+  ];
 
   return (
     <Sidebar>

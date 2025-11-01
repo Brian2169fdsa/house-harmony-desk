@@ -21,10 +21,12 @@ import CRMContactDetail from "./pages/CRMContactDetail";
 import CRMReferrals from "./pages/CRMReferrals";
 import NotFound from "./pages/NotFound";
 
-const ENABLE_INTAKE = import.meta.env.VITE_ENABLE_INTAKE === 'true';
-const ENABLE_CRM = import.meta.env.VITE_ENABLE_CRM === 'true';
-
 const queryClient = new QueryClient();
+
+const isFeatureEnabled = (flag: string) => {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(flag) === 'true';
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -44,10 +46,10 @@ const App = () => (
           <Route path="/incidents" element={<MainLayout><Incidents /></MainLayout>} />
           <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
           <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
-          {ENABLE_INTAKE && (
+          {isFeatureEnabled('ENABLE_INTAKE') && (
             <Route path="/intake" element={<MainLayout><Intake /></MainLayout>} />
           )}
-          {ENABLE_CRM && (
+          {isFeatureEnabled('ENABLE_CRM') && (
             <>
               <Route path="/crm" element={<MainLayout><CRM /></MainLayout>} />
               <Route path="/crm/contacts/:id" element={<MainLayout><CRMContactDetail /></MainLayout>} />

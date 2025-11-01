@@ -1,10 +1,29 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 export default function Settings() {
+  const [enableIntake, setEnableIntake] = useState(false);
+  const [enableCRM, setEnableCRM] = useState(false);
+
+  useEffect(() => {
+    const intake = localStorage.getItem("ENABLE_INTAKE") === "true";
+    const crm = localStorage.getItem("ENABLE_CRM") === "true";
+    setEnableIntake(intake);
+    setEnableCRM(crm);
+  }, []);
+
+  const handleFeatureFlagChange = (flag: string, enabled: boolean) => {
+    localStorage.setItem(flag, enabled.toString());
+    if (flag === "ENABLE_INTAKE") setEnableIntake(enabled);
+    if (flag === "ENABLE_CRM") setEnableCRM(enabled);
+    toast.success("Feature flag updated. Please refresh the page to see changes.");
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -56,6 +75,38 @@ export default function Settings() {
                 </p>
               </div>
               <Switch />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Feature Flags</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Intake & Waitlist</Label>
+                <p className="text-sm text-muted-foreground">
+                  Manage leads through admission pipeline with Kanban board
+                </p>
+              </div>
+              <Switch
+                checked={enableIntake}
+                onCheckedChange={(checked) => handleFeatureFlagChange("ENABLE_INTAKE", checked)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable CRM</Label>
+                <p className="text-sm text-muted-foreground">
+                  Manage contacts, organizations, and referrals
+                </p>
+              </div>
+              <Switch
+                checked={enableCRM}
+                onCheckedChange={(checked) => handleFeatureFlagChange("ENABLE_CRM", checked)}
+              />
             </div>
           </CardContent>
         </Card>
