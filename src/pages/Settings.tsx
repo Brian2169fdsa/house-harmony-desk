@@ -9,18 +9,22 @@ import { toast } from "sonner";
 export default function Settings() {
   const [enableIntake, setEnableIntake] = useState(false);
   const [enableCRM, setEnableCRM] = useState(false);
+  const [enableMaintenance, setEnableMaintenance] = useState(false);
 
   useEffect(() => {
     const intake = localStorage.getItem("ENABLE_INTAKE") === "true";
     const crm = localStorage.getItem("ENABLE_CRM") === "true";
+    const maintenance = localStorage.getItem("ENABLE_MAINTENANCE") === "true";
     setEnableIntake(intake);
     setEnableCRM(crm);
+    setEnableMaintenance(maintenance);
   }, []);
 
   const handleFeatureFlagChange = (flag: string, enabled: boolean) => {
     localStorage.setItem(flag, enabled.toString());
     if (flag === "ENABLE_INTAKE") setEnableIntake(enabled);
     if (flag === "ENABLE_CRM") setEnableCRM(enabled);
+    if (flag === "ENABLE_MAINTENANCE") setEnableMaintenance(enabled);
     toast.success("Feature flag updated. Please refresh the page to see changes.");
   };
 
@@ -106,6 +110,18 @@ export default function Settings() {
               <Switch
                 checked={enableCRM}
                 onCheckedChange={(checked) => handleFeatureFlagChange("ENABLE_CRM", checked)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Maintenance</Label>
+                <p className="text-sm text-muted-foreground">
+                  Track maintenance requests with trusted vendors
+                </p>
+              </div>
+              <Switch
+                checked={enableMaintenance}
+                onCheckedChange={(checked) => handleFeatureFlagChange("ENABLE_MAINTENANCE", checked)}
               />
             </div>
           </CardContent>

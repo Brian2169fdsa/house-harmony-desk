@@ -20,6 +20,7 @@ import Intake from "./pages/Intake";
 import CRM from "./pages/CRM";
 import CRMContactDetail from "./pages/CRMContactDetail";
 import CRMReferrals from "./pages/CRMReferrals";
+import Maintenance from "./pages/Maintenance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ const App = () => (
           <Route path="/crm" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout>} />
           <Route path="/crm/contacts/:id" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout>} />
           <Route path="/crm/referrals" element={<MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout>} />
+          <Route path="/maintenance" element={<MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

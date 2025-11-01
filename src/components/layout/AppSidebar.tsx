@@ -12,6 +12,7 @@ import {
   Home,
   UserPlus,
   Briefcase,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,17 +40,20 @@ const baseMenuItems = [
 
 const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
+const maintenanceItem = { title: "Maintenance", url: "/maintenance", icon: Wrench };
 
 export function AppSidebar() {
   const { open } = useSidebar();
   
   const enableIntake = typeof window !== 'undefined' && localStorage.getItem("ENABLE_INTAKE") === "true";
   const enableCRM = typeof window !== 'undefined' && localStorage.getItem("ENABLE_CRM") === "true";
+  const enableMaintenance = typeof window !== 'undefined' && localStorage.getItem("ENABLE_MAINTENANCE") === "true";
 
   const menuItems = [
     ...baseMenuItems.slice(0, 3),
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
+    ...(enableMaintenance ? [maintenanceItem] : []),
     ...baseMenuItems.slice(3),
   ];
 
