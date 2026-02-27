@@ -39,6 +39,14 @@ export default function Settings() {
   const [enableChecklists, setEnableChecklists] = useState(false);
   const [enableDocumentTemplates, setEnableDocumentTemplates] = useState(false);
   const [enableLMS, setEnableLMS] = useState(false);
+  const [enableAlumni, setEnableAlumni] = useState(false);
+  const [enableAIAgents, setEnableAIAgents] = useState(false);
+  const [enablePaymentAgent, setEnablePaymentAgent] = useState(false);
+  const [enableComplianceMonitor, setEnableComplianceMonitor] = useState(false);
+  const [enableMaintenanceAgent, setEnableMaintenanceAgent] = useState(false);
+  const [enableOccupancyOptimizer, setEnableOccupancyOptimizer] = useState(false);
+  const [enableReports, setEnableReports] = useState(false);
+  const [enableCommunications, setEnableCommunications] = useState(false);
 
   // Facility settings form state
   const [facilityName, setFacilityName] = useState("");
@@ -62,6 +70,14 @@ export default function Settings() {
     setEnableChecklists(localStorage.getItem("ENABLE_CHECKLISTS") === "true");
     setEnableDocumentTemplates(localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true");
     setEnableLMS(localStorage.getItem("ENABLE_LMS") === "true");
+    setEnableAlumni(localStorage.getItem("ENABLE_ALUMNI") === "true");
+    setEnableAIAgents(localStorage.getItem("ENABLE_AI_AGENTS") === "true");
+    setEnablePaymentAgent(localStorage.getItem("ENABLE_PAYMENT_AGENT") === "true");
+    setEnableComplianceMonitor(localStorage.getItem("ENABLE_COMPLIANCE_MONITOR") === "true");
+    setEnableMaintenanceAgent(localStorage.getItem("ENABLE_MAINTENANCE_AGENT") === "true");
+    setEnableOccupancyOptimizer(localStorage.getItem("ENABLE_OCCUPANCY_OPTIMIZER") === "true");
+    setEnableReports(localStorage.getItem("ENABLE_REPORTS") === "true");
+    setEnableCommunications(localStorage.getItem("ENABLE_COMMUNICATIONS") === "true");
   }, []);
 
   // Load facility settings from DB
@@ -133,6 +149,14 @@ export default function Settings() {
     if (flag === "ENABLE_CHECKLISTS") setEnableChecklists(enabled);
     if (flag === "ENABLE_DOCUMENT_TEMPLATES") setEnableDocumentTemplates(enabled);
     if (flag === "ENABLE_LMS") setEnableLMS(enabled);
+    if (flag === "ENABLE_ALUMNI") setEnableAlumni(enabled);
+    if (flag === "ENABLE_AI_AGENTS") setEnableAIAgents(enabled);
+    if (flag === "ENABLE_PAYMENT_AGENT") setEnablePaymentAgent(enabled);
+    if (flag === "ENABLE_COMPLIANCE_MONITOR") setEnableComplianceMonitor(enabled);
+    if (flag === "ENABLE_MAINTENANCE_AGENT") setEnableMaintenanceAgent(enabled);
+    if (flag === "ENABLE_OCCUPANCY_OPTIMIZER") setEnableOccupancyOptimizer(enabled);
+    if (flag === "ENABLE_REPORTS") setEnableReports(enabled);
+    if (flag === "ENABLE_COMMUNICATIONS") setEnableCommunications(enabled);
     toast.success("Feature flag updated. Refresh the page to see changes.");
   };
 
@@ -406,6 +430,118 @@ export default function Settings() {
                 checked={enableLMS}
                 onCheckedChange={(checked) =>
                   handleFeatureFlagChange("ENABLE_LMS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Alumni Network</Label>
+                <p className="text-sm text-muted-foreground">
+                  Track graduated residents, milestones, and alumni engagement
+                </p>
+              </div>
+              <Switch
+                checked={enableAlumni}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_ALUMNI", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable AI Agents</Label>
+                <p className="text-sm text-muted-foreground">
+                  Autonomous AI agents for intake screening, payment collection, compliance monitoring, and more
+                </p>
+              </div>
+              <Switch
+                checked={enableAIAgents}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_AI_AGENTS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Payment Collection Agent</Label>
+                <p className="text-sm text-muted-foreground">
+                  Automated payment follow-up sequences from reminders to formal notices
+                </p>
+              </div>
+              <Switch
+                checked={enablePaymentAgent}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_PAYMENT_AGENT", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Compliance Monitor</Label>
+                <p className="text-sm text-muted-foreground">
+                  Daily compliance scans for drug testing, meetings, certifications, and facility supplies
+                </p>
+              </div>
+              <Switch
+                checked={enableComplianceMonitor}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_COMPLIANCE_MONITOR", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Maintenance Triage Agent</Label>
+                <p className="text-sm text-muted-foreground">
+                  Auto-categorize, prioritize, and dispatch maintenance requests to vendors
+                </p>
+              </div>
+              <Switch
+                checked={enableMaintenanceAgent}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_MAINTENANCE_AGENT", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Occupancy Optimizer</Label>
+                <p className="text-sm text-muted-foreground">
+                  AI-powered vacancy analysis, lead-to-bed matching, and pricing recommendations
+                </p>
+              </div>
+              <Switch
+                checked={enableOccupancyOptimizer}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_OCCUPANCY_OPTIMIZER", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Report Generator</Label>
+                <p className="text-sm text-muted-foreground">
+                  Generate house performance, investor, compliance, and grant reports on demand or on schedule
+                </p>
+              </div>
+              <Switch
+                checked={enableReports}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_REPORTS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Communications Center</Label>
+                <p className="text-sm text-muted-foreground">
+                  Unified messaging with templates, scheduling, broadcast, and delivery tracking
+                </p>
+              </div>
+              <Switch
+                checked={enableCommunications}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_COMMUNICATIONS", checked)
                 }
               />
             </div>
