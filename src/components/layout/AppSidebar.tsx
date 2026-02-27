@@ -26,6 +26,8 @@ import {
   ClipboardCheck,
   GraduationCap,
   Award,
+  HandshakeIcon,
+  Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -59,6 +61,7 @@ const residentCareItems = [
 const safetyItems = [
   { title: "Emergency", url: "/emergency", icon: ShieldAlert },
   { title: "Accreditation", url: "/accreditation", icon: Award },
+  { title: "Community", url: "/community-engagement", icon: HandshakeIcon },
 ];
 
 const adminItems = [
@@ -71,6 +74,7 @@ const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
 const maintenanceItem = { title: "Maintenance", url: "/maintenance", icon: Wrench };
 const analyticsItem = { title: "Analytics", url: "/analytics", icon: BarChart2 };
 const projectionsItem = { title: "Projections", url: "/projections", icon: Calculator };
+const expensesItem = { title: "Expenses", url: "/expenses", icon: Receipt };
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
 const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
 const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
@@ -141,7 +145,7 @@ export function AppSidebar() {
   ];
 
   const analyticsItems = [
-    ...(enableAnalytics ? [analyticsItem, projectionsItem] : []),
+    ...(enableAnalytics ? [analyticsItem, projectionsItem, expensesItem] : []),
     ...(enableInvestorPortal ? [investorPortalItem] : []),
     ...(enableQuickBooks ? [quickBooksItem] : []),
   ];

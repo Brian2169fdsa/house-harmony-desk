@@ -42,6 +42,8 @@ import ChecklistDetail from "./pages/ChecklistDetail";
 import DocumentGenerate from "./pages/DocumentGenerate";
 import Emergency from "./pages/Emergency";
 import Accreditation from "./pages/Accreditation";
+import CommunityEngagement from "./pages/CommunityEngagement";
+import Expenses from "./pages/Expenses";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
@@ -135,6 +137,8 @@ const App = () => {
               <Route path="/checklists/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><ChecklistDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/emergency" element={<ProtectedRoute><MainLayout><Emergency /></MainLayout></ProtectedRoute>} />
               <Route path="/accreditation" element={<ProtectedRoute><MainLayout><Accreditation /></MainLayout></ProtectedRoute>} />
+              <Route path="/community-engagement" element={<ProtectedRoute><MainLayout><CommunityEngagement /></MainLayout></ProtectedRoute>} />
+              <Route path="/expenses" element={<ProtectedRoute><MainLayout><Expenses /></MainLayout></ProtectedRoute>} />
               <Route path="/intake" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />

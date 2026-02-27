@@ -83,6 +83,7 @@ Feature flags stored in `localStorage`. Toggle from Settings page. All feature-g
 | Recovery program tracking | ✅ Built | `/recovery` |
 | Emergency protocols | ✅ Built | `/emergency` |
 | Accreditation tracker | ✅ Built | `/accreditation` |
+| Community engagement log | ✅ Built | `/community-engagement` |
 | Staff management | ✅ Built | `/staff` |
 | Auth (Supabase) | ✅ Built | `/auth` |
 | Settings | ✅ Built | `/settings` |
@@ -100,6 +101,7 @@ Feature flags stored in `localStorage`. Toggle from Settings page. All feature-g
 | Training / LMS | `ENABLE_LMS` | `/training`, `/training/courses`, `/training/courses/:id`, `/training/courses/:id/lesson/:lessonId`, `/training/admin` |
 | Analytics | `ENABLE_ANALYTICS` | `/analytics` |
 | Financial projections | `ENABLE_ANALYTICS` | `/projections` (includes SLH vs BHRF startup cost tab) |
+| Expense tracking | `ENABLE_ANALYTICS` | `/expenses` |
 | Investor portal | `ENABLE_INVESTOR_PORTAL` | `/investor-portal` |
 | QuickBooks | `ENABLE_QUICKBOOKS` | `/quickbooks` |
 
@@ -393,6 +395,7 @@ See Section 2 — What Exists Today.
 | 5 | Document Management + E-Signatures | Leases, intake forms, compliance docs |
 | 6 | Emergency Protocols | ✅ Built |
 | 7 | Accreditation Tracker | ✅ Built |
+| 8 | Community Engagement Log | ✅ Built |
 
 #### Batch 2: Financial & Analytics (Weeks 5-8)
 
@@ -400,9 +403,10 @@ See Section 2 — What Exists Today.
 |---|---------|-----|
 | 8 | Expense Tracking | Need costs before ROI |
 | 9 | ROI Analytics Dashboard | ✅ Built (Analytics.tsx) |
-| 10 | QuickBooks Integration | ✅ Built (QuickBooks.tsx scaffold) |
-| 11 | Investor/Lender Portal | ✅ Built |
-| 12 | Financial Projections Engine | ✅ Built — SLH vs BHRF startup cost tab added |
+| 10 | Expense Tracking | ✅ Built (Expenses.tsx) |
+| 11 | QuickBooks Integration | ✅ Built (QuickBooks.tsx scaffold) |
+| 12 | Investor/Lender Portal | ✅ Built |
+| 13 | Financial Projections Engine | ✅ Built — SLH vs BHRF startup cost tab added |
 
 #### Batch 3: Operations Scale (Weeks 9-12)
 
