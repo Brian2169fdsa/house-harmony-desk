@@ -109,10 +109,76 @@ function PropertyCard({ house, beds, snapshots, selected, onSelect }: {
   );
 }
 
+// ─── Benchmark comparison ──────────────────────────────────────
+function BenchmarkTable({ houses, beds, snapshots }: { houses: any[]; beds: any[]; snapshots: any[] }) {
+  const houseMetrics = houses.map((h: any) => {
+    const hBeds = beds.filter((b: any) => b.house_id === h.id);
+    const total = hBeds.length;
+    const occupied = hBeds.filter((b: any) => b.status === "occupied").length;
+    const occ = total > 0 ? (occupied / total) * 100 : 0;
+    const latestSnap = snapshots.filter((s: any) => s.house_id === h.id).slice(-1)[0];
+    const revenue = latestSnap ? Number(latestSnap.revenue) : 0;
+    const noi = latestSnap ? Number(latestSnap.noi ?? (latestSnap.revenue - latestSnap.expenses)) : 0;
+    const revenuePerBed = total > 0 ? revenue / total : 0;
+    return { name: h.name, occ, revenue, noi, revenuePerBed, total, occupied };
+  });
+
+  const avgOcc = houseMetrics.length > 0 ? houseMetrics.reduce((s, h) => s + h.occ, 0) / houseMetrics.length : 0;
+  const avgRevPerBed = houseMetrics.length > 0 ? houseMetrics.reduce((s, h) => s + h.revenuePerBed, 0) / houseMetrics.length : 0;
+  const avgNOI = houseMetrics.length > 0 ? houseMetrics.reduce((s, h) => s + h.noi, 0) / houseMetrics.length : 0;
+
+  if (houseMetrics.length === 0) return null;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-2 pr-4 font-medium">Property</th>
+            <th className="text-right py-2 px-3 font-medium">Occupancy</th>
+            <th className="text-right py-2 px-3 font-medium">Rev / Bed</th>
+            <th className="text-right py-2 px-3 font-medium">Monthly NOI</th>
+            <th className="text-right py-2 px-3 font-medium">vs Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {houseMetrics.map((h) => {
+            const diff = avgNOI !== 0 ? ((h.noi - avgNOI) / Math.abs(avgNOI)) * 100 : 0;
+            return (
+              <tr key={h.name} className="border-b hover:bg-muted/50">
+                <td className="py-2 pr-4 font-medium">{h.name}</td>
+                <td className={`text-right py-2 px-3 ${h.occ >= avgOcc ? "text-green-600" : "text-red-600"}`}>
+                  {fmtPct(h.occ)}
+                </td>
+                <td className={`text-right py-2 px-3 ${h.revenuePerBed >= avgRevPerBed ? "text-green-600" : "text-red-600"}`}>
+                  {fmt(h.revenuePerBed)}
+                </td>
+                <td className={`text-right py-2 px-3 font-medium ${h.noi >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {fmt(h.noi)}
+                </td>
+                <td className={`text-right py-2 px-3 text-xs ${diff >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {diff >= 0 ? "+" : ""}{diff.toFixed(1)}%
+                </td>
+              </tr>
+            );
+          })}
+          <tr className="border-t-2 bg-muted/30">
+            <td className="py-2 pr-4 font-bold">Portfolio Avg</td>
+            <td className="text-right py-2 px-3 font-bold">{fmtPct(avgOcc)}</td>
+            <td className="text-right py-2 px-3 font-bold">{fmt(avgRevPerBed)}</td>
+            <td className="text-right py-2 px-3 font-bold">{fmt(avgNOI)}</td>
+            <td className="text-right py-2 px-3 text-xs text-muted-foreground">baseline</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ─── P&L summary table ───────────────────────────────────────
 function PLTable({ snapshots, houses }: { snapshots: any[]; houses: any[] }) {
-  const months = Array.from({ length: 3 }, (_, i) => {
-    const d = subMonths(startOfMonth(new Date()), 2 - i);
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(startOfMonth(new Date()), 5 - i);
     return { key: format(d, "yyyy-MM"), label: format(d, "MMM yyyy") };
   });
 
@@ -336,10 +402,21 @@ export default function InvestorPortal() {
         </Card>
       )}
 
+      {/* Benchmark Comparison */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Property Benchmarks</CardTitle>
+          <CardDescription>Each property compared to the portfolio average — highlights above/below performers</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BenchmarkTable houses={houses} beds={beds} snapshots={snapshots} />
+        </CardContent>
+      </Card>
+
       {/* P&L Summary */}
       <Card>
         <CardHeader>
-          <CardTitle>P&amp;L Summary — Last 3 Months</CardTitle>
+          <CardTitle>P&amp;L Summary — Last 6 Months</CardTitle>
           <CardDescription>Revenue and NOI by property and month</CardDescription>
         </CardHeader>
         <CardContent>
@@ -393,6 +470,27 @@ export default function InvestorPortal() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expense Transparency */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Expense Breakdown — Last 12 Months</CardTitle>
+          <CardDescription>Total portfolio expenses by category for investor transparency</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={revenueTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v: any) => fmt(Number(v))} />
+              <Legend />
+              <Bar dataKey="revenue" fill="#6366f1" name="Revenue" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Open maintenance */}
       <Card>
