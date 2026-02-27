@@ -23,6 +23,7 @@ import {
   Calculator,
   Link2,
   Rocket,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,7 +56,6 @@ const residentCareItems = [
 
 const safetyItems = [
   { title: "Emergency", url: "/emergency", icon: ShieldAlert },
-  { title: "Documents", url: "/documents", icon: FileText },
 ];
 
 const adminItems = [
@@ -71,6 +71,8 @@ const projectionsItem = { title: "Projections", url: "/projections", icon: Calcu
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
 const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
 const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
+const checklistsItem = { title: "Checklists", url: "/checklists", icon: ClipboardCheck };
+const documentTemplatesItem = { title: "Documents", url: "/documents", icon: FileText };
 
 function NavGroup({
   label,
@@ -120,12 +122,16 @@ export function AppSidebar() {
   const enableInvestorPortal = typeof window !== "undefined" && localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true";
   const enableQuickBooks = typeof window !== "undefined" && localStorage.getItem("ENABLE_QUICKBOOKS") === "true";
   const enableStartupWizard = typeof window !== "undefined" && localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true";
+  const enableChecklists = typeof window !== "undefined" && localStorage.getItem("ENABLE_CHECKLISTS") === "true";
+  const enableDocumentTemplates = typeof window !== "undefined" && localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true";
 
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
     ...(enableMaintenance ? [maintenanceItem] : []),
     ...(enableStartupWizard ? [startupWizardItem] : []),
+    ...(enableChecklists ? [checklistsItem] : []),
+    ...(enableDocumentTemplates ? [documentTemplatesItem] : []),
   ];
 
   const analyticsItems = [

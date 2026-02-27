@@ -1,106 +1,81 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FileText,
   Plus,
   Eye,
-  Download,
-  Pencil,
   Trash2,
-  Upload,
-  ExternalLink,
+  Download,
+  Clock,
+  FileCheck,
 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { RoleGuard } from "@/components/RoleGuard";
-import { logAudit } from "@/lib/audit";
+import { toast } from "sonner";
+import { format, formatDistanceToNow } from "date-fns";
 
-type DocumentCategory =
-  | "lease"
-  | "house_rules"
-  | "intake_form"
-  | "incident_report"
-  | "consent"
-  | "other";
-
-const CATEGORIES: { value: DocumentCategory; label: string }[] = [
-  { value: "lease", label: "Lease Agreement" },
-  { value: "house_rules", label: "House Rules" },
-  { value: "intake_form", label: "Intake Form" },
-  { value: "incident_report", label: "Incident Report" },
-  { value: "consent", label: "Consent Form" },
-  { value: "other", label: "Other" },
-];
-
-// Extract {{variable}} placeholders from template content
-function extractVariables(content: string): string[] {
-  const matches = content.match(/\{\{(\w+)\}\}/g) ?? [];
-  return [...new Set(matches.map((m) => m.slice(2, -2)))];
+interface DocumentTemplate {
+  id: string;
+  name: string;
+  category: string;
+  template_content: string;
+  variables_json: any;
+  created_at: string;
 }
 
-// Fill template variables
-function fillTemplate(content: string, vars: Record<string, string>): string {
-  return content.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
+interface GeneratedDocument {
+  id: string;
+  template_id: string | null;
+  title: string;
+  filled_content: string;
+  created_at: string;
+  document_templates: { name: string; category: string } | null;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  lease: "Lease",
+  house_rules: "House Rules",
+  intake_form: "Intake Form",
+  incident_report: "Incident Report",
+  consent: "Consent",
+  other: "Other",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  lease: "default",
+  house_rules: "secondary",
+  intake_form: "default",
+  incident_report: "destructive",
+  consent: "outline",
+  other: "outline",
+};
 
 export default function Documents() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [previewDoc, setPreviewDoc] = useState<GeneratedDocument | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GeneratedDocument | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Template form state
-  const [templateOpen, setTemplateOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
-  const [templateName, setTemplateName] = useState("");
-  const [templateCategory, setTemplateCategory] = useState<DocumentCategory>("lease");
-  const [templateContent, setTemplateContent] = useState("");
-
-  // Generate document dialog state
-  const [generateOpen, setGenerateOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
-  const [generateResidentId, setGenerateResidentId] = useState<string>("");
-  const [generateTitle, setGenerateTitle] = useState("");
-  const [variableValues, setVariableValues] = useState<Record<string, string>>({});
-
-  // Preview dialog state
-  const [previewDoc, setPreviewDoc] = useState<any | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-
-  // Resident docs upload
-  const [residentDocResidentId, setResidentDocResidentId] = useState("");
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const fileInputRef = useState<HTMLInputElement | null>(null);
-
-  // ── Queries ──────────────────────────────────────────────────────────────
-
-  const { data: templates, isLoading: templatesLoading } = useQuery({
+  // Fetch document templates
+  const { data: templates = [], isLoading: templatesLoading } = useQuery({
     queryKey: ["document_templates"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -108,739 +83,334 @@ export default function Documents() {
         .select("*")
         .order("name");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as DocumentTemplate[];
     },
   });
 
-  const { data: generated, isLoading: generatedLoading } = useQuery({
+  // Fetch generated documents
+  const { data: generated = [], isLoading: generatedLoading } = useQuery({
     queryKey: ["generated_documents"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("generated_documents")
-        .select("*, residents(first_name, last_name), document_templates(name)")
+        .select("*, document_templates(name, category)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as GeneratedDocument[];
     },
   });
 
-  const { data: residents } = useQuery({
-    queryKey: ["residents_list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("residents")
-        .select("id, first_name, last_name")
-        .order("first_name");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const { data: residentDocs } = useQuery({
-    queryKey: ["resident_documents", residentDocResidentId],
-    queryFn: async () => {
-      if (!residentDocResidentId) return [];
-      const { data, error } = await supabase
-        .from("resident_documents")
-        .select("*")
-        .eq("resident_id", residentDocResidentId)
-        .order("uploaded_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-    enabled: !!residentDocResidentId,
-  });
-
-  // ── Mutations ─────────────────────────────────────────────────────────────
-
-  const saveTemplate = useMutation({
-    mutationFn: async () => {
-      const variables = extractVariables(templateContent);
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (editingTemplate) {
-        const { error } = await supabase
-          .from("document_templates")
-          .update({
-            name: templateName,
-            category: templateCategory,
-            template_content: templateContent,
-            variables_json: variables,
-          })
-          .eq("id", editingTemplate.id);
-        if (error) throw error;
-        await logAudit("UPDATE", "document_templates", editingTemplate.id, {
-          new: { name: templateName, category: templateCategory },
-        });
-      } else {
-        const { error } = await supabase.from("document_templates").insert({
-          name: templateName,
-          category: templateCategory,
-          template_content: templateContent,
-          variables_json: variables,
-          created_by: user?.id ?? null,
-        });
-        if (error) throw error;
-        await logAudit("INSERT", "document_templates", undefined, {
-          new: { name: templateName, category: templateCategory },
-        });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["document_templates"] });
-      toast({ title: editingTemplate ? "Template updated" : "Template created" });
-      closeTemplateDialog();
-    },
-    onError: (err: any) => {
-      toast({ title: err.message || "Failed to save template", variant: "destructive" });
-    },
-  });
-
-  const deleteTemplate = useMutation({
+  // Delete generated document
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("document_templates").delete().eq("id", id);
-      if (error) throw error;
-      await logAudit("DELETE", "document_templates", id, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["document_templates"] });
-      toast({ title: "Template deleted" });
-    },
-    onError: (err: any) => {
-      toast({ title: err.message || "Failed to delete", variant: "destructive" });
-    },
-  });
-
-  const generateDocument = useMutation({
-    mutationFn: async () => {
-      if (!selectedTemplate) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      const filled = fillTemplate(selectedTemplate.template_content, variableValues);
-      const { error } = await supabase.from("generated_documents").insert({
-        template_id: selectedTemplate.id,
-        resident_id: generateResidentId || null,
-        title: generateTitle || selectedTemplate.name,
-        filled_content: filled,
-        created_by: user?.id ?? null,
-      });
+      const { error } = await supabase
+        .from("generated_documents")
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["generated_documents"] });
-      toast({ title: "Document generated" });
-      setGenerateOpen(false);
-      setSelectedTemplate(null);
-      setGenerateResidentId("");
-      setGenerateTitle("");
-      setVariableValues({});
+      setDeleteTarget(null);
+      toast.success("Document deleted");
     },
-    onError: (err: any) => {
-      toast({ title: err.message || "Failed to generate", variant: "destructive" });
-    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
-  const deleteGenerated = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("generated_documents").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["generated_documents"] });
-      toast({ title: "Document deleted" });
-    },
-  });
+  const filteredGenerated = generated.filter(
+    (d) =>
+      !searchQuery ||
+      d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.document_templates?.name ?? "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+  );
 
-  const deleteResidentDoc = useMutation({
-    mutationFn: async ({ id, file_path }: { id: string; file_path: string }) => {
-      await supabase.storage.from("resident-documents").remove([file_path]);
-      const { error } = await supabase.from("resident_documents").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["resident_documents", residentDocResidentId] });
-      toast({ title: "Document removed" });
-    },
-  });
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  function openNewTemplate() {
-    setEditingTemplate(null);
-    setTemplateName("");
-    setTemplateCategory("lease");
-    setTemplateContent("");
-    setTemplateOpen(true);
-  }
-
-  function openEditTemplate(t: any) {
-    setEditingTemplate(t);
-    setTemplateName(t.name);
-    setTemplateCategory(t.category as DocumentCategory);
-    setTemplateContent(t.template_content);
-    setTemplateOpen(true);
-  }
-
-  function closeTemplateDialog() {
-    setTemplateOpen(false);
-    setEditingTemplate(null);
-  }
-
-  function openGenerate(t: any) {
-    setSelectedTemplate(t);
-    setGenerateTitle(t.name);
-    const vars = extractVariables(t.template_content);
-    const initial: Record<string, string> = {};
-    vars.forEach((v) => (initial[v] = ""));
-    setVariableValues(initial);
-    setGenerateResidentId("");
-    setGenerateOpen(true);
-  }
-
-  function downloadText(content: string, filename: string) {
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function handleResidentDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!residentDocResidentId || !e.target.files?.length) return;
-    setUploadingFiles(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      for (const file of Array.from(e.target.files)) {
-        const path = `${residentDocResidentId}/${Date.now()}-${file.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("resident-documents")
-          .upload(path, file);
-        if (uploadErr) throw uploadErr;
-        const { data: { publicUrl } } = supabase.storage
-          .from("resident-documents")
-          .getPublicUrl(path);
-        const { error: dbErr } = await supabase.from("resident_documents").insert({
-          resident_id: residentDocResidentId,
-          file_name: file.name,
-          file_path: path,
-          file_url: publicUrl,
-          file_size: file.size,
-          uploaded_by: user?.id ?? null,
-        });
-        if (dbErr) throw dbErr;
-      }
-      queryClient.invalidateQueries({ queryKey: ["resident_documents", residentDocResidentId] });
-      toast({ title: "Files uploaded" });
-    } catch (err: any) {
-      toast({ title: err.message || "Upload failed", variant: "destructive" });
-    } finally {
-      setUploadingFiles(false);
-      e.target.value = "";
+  const printDocument = (doc: GeneratedDocument) => {
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast.error("Pop-up blocked — allow pop-ups to print.");
+      return;
     }
-  }
-
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  const detectedVars = extractVariables(templateContent);
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${doc.title}</title>
+        <style>
+          body { font-family: Georgia, serif; max-width: 750px; margin: 40px auto; padding: 0 20px; color: #111; }
+          h1 { font-size: 22px; } h2 { font-size: 18px; } h3 { font-size: 15px; margin-top: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          td, th { padding: 6px 8px; border: 1px solid #ccc; font-size: 13px; }
+          ul, ol { margin: 8px 0 8px 20px; } li { margin: 4px 0; }
+          .document { line-height: 1.6; }
+          @media print { body { margin: 20px; } }
+        </style>
+      </head>
+      <body>${doc.filled_content}</body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <FileText className="h-8 w-8" />
-          Documents
-        </h1>
-        <p className="text-muted-foreground">
-          Manage templates, generate documents, and store resident files
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Documents</h1>
+          <p className="text-muted-foreground">
+            Generate and manage facility documents from templates
+          </p>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{templates.length}</p>
+                <p className="text-sm text-muted-foreground">Templates</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <FileCheck className="h-8 w-8 text-green-500" />
+              <div>
+                <p className="text-2xl font-bold">{generated.length}</p>
+                <p className="text-sm text-muted-foreground">Generated</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="templates">
         <TabsList>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="generated">Generated Docs</TabsTrigger>
-          <TabsTrigger value="resident-docs">Resident Files</TabsTrigger>
+          <TabsTrigger value="templates">
+            Templates ({templates.length})
+          </TabsTrigger>
+          <TabsTrigger value="generated">
+            Generated ({generated.length})
+          </TabsTrigger>
         </TabsList>
 
-        {/* ── Templates ─────────────────────────────────────────────── */}
-        <TabsContent value="templates" className="space-y-4 mt-4">
-          <div className="flex justify-end">
-            <RoleGuard roles={["owner", "regional_manager", "house_manager"]}>
-              <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
-                <DialogTrigger asChild>
-                  <Button onClick={openNewTemplate}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Template
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingTemplate ? "Edit Template" : "New Template"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label>Template Name</Label>
-                        <Input
-                          value={templateName}
-                          onChange={(e) => setTemplateName(e.target.value)}
-                          placeholder="e.g. Resident Lease Agreement"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Category</Label>
-                        <Select
-                          value={templateCategory}
-                          onValueChange={(v) => setTemplateCategory(v as DocumentCategory)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CATEGORIES.map((c) => (
-                              <SelectItem key={c.value} value={c.value}>
-                                {c.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label>
-                        Content{" "}
-                        <span className="text-muted-foreground text-xs font-normal">
-                          — use {"{{variable_name}}"} for merge fields
-                        </span>
-                      </Label>
-                      <Textarea
-                        value={templateContent}
-                        onChange={(e) => setTemplateContent(e.target.value)}
-                        rows={12}
-                        placeholder={`This agreement is between {{resident_name}} and {{facility_name}}...\n\nDate: {{date}}\nMonthly Rent: ${{rent_amount}}`}
-                        className="font-mono text-sm"
-                      />
-                    </div>
-                    {detectedVars.length > 0 && (
-                      <div className="text-sm text-muted-foreground">
-                        Detected variables:{" "}
-                        {detectedVars.map((v) => (
-                          <Badge key={v} variant="secondary" className="mr-1 font-mono">
-                            {v}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <Button
-                      className="w-full"
-                      disabled={!templateName.trim() || !templateContent.trim() || saveTemplate.isPending}
-                      onClick={() => saveTemplate.mutate()}
-                    >
-                      {saveTemplate.isPending ? "Saving…" : editingTemplate ? "Update Template" : "Create Template"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </RoleGuard>
-          </div>
-
+        {/* Templates Tab */}
+        <TabsContent value="templates" className="space-y-3">
           {templatesLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
-          ) : templates && templates.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {templates.map((t: any) => {
-                const vars = Array.isArray(t.variables_json) ? t.variables_json : [];
+            <div className="text-center py-8 text-muted-foreground">
+              Loading templates...
+            </div>
+          ) : templates.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No templates found</p>
+                <p className="text-muted-foreground">
+                  Run the database migration to load the 5 pre-built document templates.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {templates.map((tmpl) => {
+                const varCount = Array.isArray(tmpl.variables_json)
+                  ? (tmpl.variables_json as any[]).length
+                  : 0;
                 return (
-                  <Card key={t.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-base leading-tight">{t.name}</CardTitle>
-                        <Badge variant="outline" className="shrink-0 text-xs">
-                          {CATEGORIES.find((c) => c.value === t.category)?.label ?? t.category}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {vars.length > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          Variables:{" "}
-                          {(vars as string[]).map((v) => (
-                            <code
-                              key={v}
-                              className="mr-1 rounded bg-muted px-1 py-0.5"
+                  <Card
+                    key={tmpl.id}
+                    className="hover:bg-muted/30 transition-colors"
+                  >
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 className="font-semibold">{tmpl.name}</h3>
+                            <Badge
+                              variant={
+                                (CATEGORY_COLORS[tmpl.category] as any) ??
+                                "outline"
+                              }
+                              className="text-xs"
                             >
-                              {v}
-                            </code>
-                          ))}
+                              {CATEGORY_LABELS[tmpl.category] ?? tmpl.category}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {varCount} variable{varCount !== 1 ? "s" : ""}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Added{" "}
+                            {formatDistanceToNow(new Date(tmpl.created_at), {
+                              addSuffix: true,
+                            })}
+                          </p>
                         </div>
-                      )}
-                      <div className="flex gap-2">
                         <Button
+                          onClick={() =>
+                            navigate(`/documents/generate/${tmpl.id}`)
+                          }
                           size="sm"
-                          className="flex-1"
-                          onClick={() => openGenerate(t)}
                         >
-                          <FileText className="mr-1 h-3 w-3" />
+                          <Plus className="h-4 w-4 mr-1" />
                           Generate
                         </Button>
-                        <RoleGuard roles={["owner", "regional_manager", "house_manager"]}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditTemplate(t)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive"
-                            onClick={() => {
-                              if (confirm("Delete this template?")) deleteTemplate.mutate(t.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </RoleGuard>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                No templates yet. Create your first template to get started.
-              </CardContent>
-            </Card>
           )}
         </TabsContent>
 
-        {/* ── Generated Documents ───────────────────────────────────── */}
-        <TabsContent value="generated" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generated Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {generatedLoading ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Template</TableHead>
-                      <TableHead>Resident</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Signed</TableHead>
-                      <TableHead className="w-[100px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {generated && generated.length > 0 ? (
-                      generated.map((doc: any) => (
-                        <TableRow key={doc.id}>
-                          <TableCell className="font-medium">{doc.title}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {doc.document_templates?.name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {doc.residents
-                              ? `${doc.residents.first_name} ${doc.residents.last_name}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(doc.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {doc.signed_at ? (
-                              <Badge variant="default" className="text-xs">
-                                Signed
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                Unsigned
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setPreviewDoc(doc);
-                                  setPreviewOpen(true);
-                                }}
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  downloadText(
-                                    doc.filled_content,
-                                    `${doc.title.replace(/\s+/g, "_")}.txt`
-                                  )
-                                }
-                              >
-                                <Download className="h-3 w-3" />
-                              </Button>
-                              <RoleGuard roles={["owner", "regional_manager", "house_manager"]}>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive"
-                                  onClick={() => {
-                                    if (confirm("Delete this document?"))
-                                      deleteGenerated.mutate(doc.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </RoleGuard>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center text-muted-foreground py-8"
-                        >
-                          No documents generated yet. Use a template to generate one.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── Resident Files ────────────────────────────────────────── */}
-        <TabsContent value="resident-docs" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Resident File Upload</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4 items-end">
-                <div className="flex-1 space-y-1">
-                  <Label>Select Resident</Label>
-                  <Select
-                    value={residentDocResidentId}
-                    onValueChange={setResidentDocResidentId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a resident…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(residents ?? []).map((r: any) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.first_name} {r.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {residentDocResidentId && (
-                  <div>
-                    <Label htmlFor="resident-file-upload" className="cursor-pointer">
-                      <Button
-                        asChild
-                        disabled={uploadingFiles}
-                        variant="outline"
-                      >
-                        <span>
-                          <Upload className="mr-2 h-4 w-4" />
-                          {uploadingFiles ? "Uploading…" : "Upload Files"}
-                        </span>
-                      </Button>
-                    </Label>
-                    <input
-                      id="resident-file-upload"
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleResidentDocUpload}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {residentDocResidentId && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>File Name</TableHead>
-                      <TableHead>Size</TableHead>
-                      <TableHead>Uploaded</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {residentDocs && residentDocs.length > 0 ? (
-                      (residentDocs as any[]).map((doc) => (
-                        <TableRow key={doc.id}>
-                          <TableCell className="font-medium">
-                            <a
-                              href={doc.file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 hover:underline"
-                            >
-                              {doc.file_name}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {doc.file_size
-                              ? `${(doc.file_size / 1024).toFixed(1)} KB`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(doc.uploaded_at ?? doc.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() =>
-                                deleteResidentDoc.mutate({
-                                  id: doc.id,
-                                  file_path: doc.file_path,
-                                })
+        {/* Generated Documents Tab */}
+        <TabsContent value="generated" className="space-y-3">
+          <Input
+            placeholder="Search generated documents..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-xs"
+          />
+          {generatedLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading...
+            </div>
+          ) : filteredGenerated.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <FileCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No documents generated yet</p>
+                <p className="text-muted-foreground">
+                  Select a template above and fill in the variables to generate
+                  your first document.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredGenerated.map((doc) => (
+                <Card key={doc.id}>
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-medium truncate">{doc.title}</h3>
+                          {doc.document_templates && (
+                            <Badge
+                              variant={
+                                (CATEGORY_COLORS[
+                                  doc.document_templates.category
+                                ] as any) ?? "outline"
                               }
+                              className="text-xs"
                             >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="text-center text-muted-foreground py-6"
+                              {doc.document_templates.name}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Clock className="h-3 w-3" />
+                          {format(
+                            new Date(doc.created_at),
+                            "MMM d, yyyy 'at' h:mm a"
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setPreviewDoc(doc)}
                         >
-                          No files uploaded for this resident yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => printDocument(doc)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(doc)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* ── Generate Document Dialog ───────────────────────────────── */}
-      <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Generate Document</DialogTitle>
-          </DialogHeader>
-          {selectedTemplate && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <Label>Document Title</Label>
-                <Input
-                  value={generateTitle}
-                  onChange={(e) => setGenerateTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Resident (optional)</Label>
-                <Select
-                  value={generateResidentId}
-                  onValueChange={setGenerateResidentId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select resident…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(residents ?? []).map((r: any) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.first_name} {r.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {Object.keys(variableValues).length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Fill Variables</Label>
-                  {Object.keys(variableValues).map((varName) => (
-                    <div key={varName} className="space-y-1">
-                      <Label className="text-xs text-muted-foreground font-mono">
-                        {"{{"}{varName}{"}}"}
-                      </Label>
-                      <Input
-                        value={variableValues[varName]}
-                        onChange={(e) =>
-                          setVariableValues((prev) => ({
-                            ...prev,
-                            [varName]: e.target.value,
-                          }))
-                        }
-                        placeholder={`Enter ${varName}…`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Button
-                className="w-full"
-                disabled={!generateTitle.trim() || generateDocument.isPending}
-                onClick={() => generateDocument.mutate()}
-              >
-                {generateDocument.isPending ? "Generating…" : "Generate Document"}
+      {/* Preview Dialog */}
+      {previewDoc && (
+        <Dialog open={!!previewDoc} onOpenChange={() => setPreviewDoc(null)}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{previewDoc.title}</DialogTitle>
+            </DialogHeader>
+            <div
+              className="prose prose-sm max-w-none border rounded p-4 text-sm"
+              dangerouslySetInnerHTML={{ __html: previewDoc.filled_content }}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreviewDoc(null)}>
+                Close
               </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Preview Dialog ─────────────────────────────────────────── */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{previewDoc?.title}</DialogTitle>
-          </DialogHeader>
-          {previewDoc && (
-            <div className="space-y-4">
-              <pre className="text-sm whitespace-pre-wrap font-sans bg-muted p-4 rounded-lg">
-                {previewDoc.filled_content}
-              </pre>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  downloadText(
-                    previewDoc.filled_content,
-                    `${previewDoc.title.replace(/\s+/g, "_")}.txt`
-                  )
-                }
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download as Text
+              <Button onClick={() => printDocument(previewDoc)}>
+                <Download className="h-4 w-4 mr-2" />
+                Print / Save PDF
               </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirm Dialog */}
+      {deleteTarget && (
+        <Dialog
+          open={!!deleteTarget}
+          onOpenChange={() => setDeleteTarget(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Document</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete "{deleteTarget.title}"? This
+              cannot be undone.
+            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteMutation.mutate(deleteTarget.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

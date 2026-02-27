@@ -36,6 +36,8 @@ export default function Settings() {
   const [enableInvestorPortal, setEnableInvestorPortal] = useState(false);
   const [enableQuickBooks, setEnableQuickBooks] = useState(false);
   const [enableStartupWizard, setEnableStartupWizard] = useState(false);
+  const [enableChecklists, setEnableChecklists] = useState(false);
+  const [enableDocumentTemplates, setEnableDocumentTemplates] = useState(false);
 
   // Facility settings form state
   const [facilityName, setFacilityName] = useState("");
@@ -56,6 +58,8 @@ export default function Settings() {
     setEnableInvestorPortal(localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true");
     setEnableQuickBooks(localStorage.getItem("ENABLE_QUICKBOOKS") === "true");
     setEnableStartupWizard(localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true");
+    setEnableChecklists(localStorage.getItem("ENABLE_CHECKLISTS") === "true");
+    setEnableDocumentTemplates(localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true");
   }, []);
 
   // Load facility settings from DB
@@ -124,6 +128,8 @@ export default function Settings() {
     if (flag === "ENABLE_INVESTOR_PORTAL") setEnableInvestorPortal(enabled);
     if (flag === "ENABLE_QUICKBOOKS") setEnableQuickBooks(enabled);
     if (flag === "ENABLE_STARTUP_WIZARD") setEnableStartupWizard(enabled);
+    if (flag === "ENABLE_CHECKLISTS") setEnableChecklists(enabled);
+    if (flag === "ENABLE_DOCUMENT_TEMPLATES") setEnableDocumentTemplates(enabled);
     toast.success("Feature flag updated. Refresh the page to see changes.");
   };
 
@@ -355,6 +361,34 @@ export default function Settings() {
                 checked={enableStartupWizard}
                 onCheckedChange={(checked) =>
                   handleFeatureFlagChange("ENABLE_STARTUP_WIZARD", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Checklists</Label>
+                <p className="text-sm text-muted-foreground">
+                  Smart operational checklists with dependencies, assignees, and progress tracking
+                </p>
+              </div>
+              <Switch
+                checked={enableChecklists}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_CHECKLISTS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Document Templates</Label>
+                <p className="text-sm text-muted-foreground">
+                  Generate and manage facility documents with variable substitution and PDF export
+                </p>
+              </div>
+              <Switch
+                checked={enableDocumentTemplates}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_DOCUMENT_TEMPLATES", checked)
                 }
               />
             </div>

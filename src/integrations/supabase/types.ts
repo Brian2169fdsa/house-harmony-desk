@@ -1206,6 +1206,219 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_templates: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          category: string
+          estimated_days: number | null
+          items: Json
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          category: string
+          estimated_days?: number | null
+          items?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          category?: string
+          estimated_days?: number | null
+          items?: Json
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      checklists: {
+        Row: {
+          id: string
+          template_id: string | null
+          house_id: string | null
+          resident_id: string | null
+          title: string
+          status: string
+          assignee: string | null
+          due_date: string | null
+          start_date: string | null
+          completed_at: string | null
+          created_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          template_id?: string | null
+          house_id?: string | null
+          resident_id?: string | null
+          title: string
+          status?: string
+          assignee?: string | null
+          due_date?: string | null
+          start_date?: string | null
+          completed_at?: string | null
+          created_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string | null
+          house_id?: string | null
+          resident_id?: string | null
+          title?: string
+          status?: string
+          assignee?: string | null
+          due_date?: string | null
+          start_date?: string | null
+          completed_at?: string | null
+          created_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      checklist_items: {
+        Row: {
+          id: string
+          checklist_id: string
+          template_item_id: string | null
+          title: string
+          description: string | null
+          category: string | null
+          order_index: number
+          status: string
+          assignee: string | null
+          due_date: string | null
+          completed_at: string | null
+          completed_by: string | null
+          depends_on: string[] | null
+          notes: string | null
+          is_required: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          checklist_id: string
+          template_item_id?: string | null
+          title: string
+          description?: string | null
+          category?: string | null
+          order_index?: number
+          status?: string
+          assignee?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          depends_on?: string[] | null
+          notes?: string | null
+          is_required?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          checklist_id?: string
+          template_item_id?: string | null
+          title?: string
+          description?: string | null
+          category?: string | null
+          order_index?: number
+          status?: string
+          assignee?: string | null
+          due_date?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          depends_on?: string[] | null
+          notes?: string | null
+          is_required?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      checklist_item_attachments: {
+        Row: {
+          id: string
+          checklist_item_id: string
+          file_name: string
+          file_url: string
+          file_size: number | null
+          mime_type: string | null
+          uploaded_by: string | null
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          checklist_item_id: string
+          file_name: string
+          file_url: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          checklist_item_id?: string
+          file_name?: string
+          file_url?: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          uploaded_at?: string
+        }
+        Relationships: []
+      }
+      checklist_audit_log: {
+        Row: {
+          id: string
+          checklist_id: string
+          checklist_item_id: string | null
+          action: string
+          old_value: Json | null
+          new_value: Json | null
+          performed_by: string | null
+          performed_at: string
+        }
+        Insert: {
+          id?: string
+          checklist_id: string
+          checklist_item_id?: string | null
+          action: string
+          old_value?: Json | null
+          new_value?: Json | null
+          performed_by?: string | null
+          performed_at?: string
+        }
+        Update: {
+          id?: string
+          checklist_id?: string
+          checklist_item_id?: string | null
+          action?: string
+          old_value?: Json | null
+          new_value?: Json | null
+          performed_by?: string | null
+          performed_at?: string
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           id: string

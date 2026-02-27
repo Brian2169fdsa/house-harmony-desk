@@ -32,6 +32,9 @@ import Staff from "./pages/Staff";
 import DrugTests from "./pages/DrugTests";
 import Recovery from "./pages/Recovery";
 import Documents from "./pages/Documents";
+import Checklists from "./pages/Checklists";
+import ChecklistDetail from "./pages/ChecklistDetail";
+import DocumentGenerate from "./pages/DocumentGenerate";
 import Emergency from "./pages/Emergency";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -120,7 +123,10 @@ const App = () => {
               <Route path="/staff" element={<ProtectedRoute><MainLayout><Staff /></MainLayout></ProtectedRoute>} />
               <Route path="/drug-tests" element={<ProtectedRoute><MainLayout><DrugTests /></MainLayout></ProtectedRoute>} />
               <Route path="/recovery" element={<ProtectedRoute><MainLayout><Recovery /></MainLayout></ProtectedRoute>} />
-              <Route path="/documents" element={<ProtectedRoute><MainLayout><Documents /></MainLayout></ProtectedRoute>} />
+              <Route path="/documents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><Documents /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/documents/generate/:templateId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><DocumentGenerate /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/checklists" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><Checklists /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/checklists/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><ChecklistDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/emergency" element={<ProtectedRoute><MainLayout><Emergency /></MainLayout></ProtectedRoute>} />
               <Route path="/intake" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout></ProtectedRoute>} />
