@@ -385,8 +385,14 @@ VALUES (
 );
 
 -- ============================================================
--- SEED: 5 Document Templates
+-- SEED: 5 Document Templates (conditional on table existence)
 -- ============================================================
+-- Note: document_templates is created by batch1_foundation.sql
+-- These INSERTs are wrapped to be a no-op if the table doesn't exist yet
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='document_templates') THEN
 
 INSERT INTO public.document_templates (id, name, category, template_content, variables_json)
 VALUES (
@@ -681,3 +687,6 @@ VALUES (
     {"name":"witnesses","label":"Witnesses (names)","type":"text","required":false,"default_value":"None"}
   ]'::jsonb
 );
+
+  END IF;
+END $$;
