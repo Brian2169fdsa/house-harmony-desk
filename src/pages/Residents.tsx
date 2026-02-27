@@ -39,18 +39,35 @@ export default function Residents() {
   );
   const [uploading, setUploading] = useState(false);
 
-  // Fetch residents from DB
+  // Fetch residents with bed/room/house join
   const { data: residents, isLoading } = useQuery({
     queryKey: ["residents"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("residents")
-        .select("*")
+        .select(`
+          *,
+          bed:beds(
+            label,
+            room:rooms(
+              name,
+              house:houses(name)
+            )
+          )
+        `)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
+
+  function getRoomBed(resident: NonNullable<typeof residents>[number]) {
+    const bed = (resident as any).bed;
+    if (!bed) return "—";
+    const room = bed.room;
+    if (!room) return bed.label ?? "—";
+    return `${room.name} · ${bed.label}`;
+  }
 
   // Fetch documents for selected resident
   const { data: documents, refetch: refetchDocs } = useQuery({
@@ -177,7 +194,7 @@ export default function Residents() {
                   residents.map((resident) => (
                     <TableRow key={resident.id}>
                       <TableCell className="font-medium">{resident.name}</TableCell>
-                      <TableCell>{resident.room ?? "—"}</TableCell>
+                      <TableCell>{getRoomBed(resident)}</TableCell>
                       <TableCell>{resident.lease_start ?? "—"}</TableCell>
                       <TableCell>{resident.lease_end ?? "—"}</TableCell>
                       <TableCell>
