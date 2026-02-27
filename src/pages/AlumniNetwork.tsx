@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Users, Heart, Briefcase, Home, Phone, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Users, Heart, Briefcase, Home, Phone, Loader2, AlertTriangle, Award, TrendingUp } from "lucide-react";
 import { format, parseISO, differenceInDays, addDays } from "date-fns";
 import { toast } from "sonner";
 
@@ -418,6 +418,7 @@ export default function AlumniNetwork() {
           <TabsTrigger value="directory">Directory ({alumni.length})</TabsTrigger>
           <TabsTrigger value="checkins">Check-Ins ({checkins.length})</TabsTrigger>
           <TabsTrigger value="mentorship">Mentorship ({pairs.length})</TabsTrigger>
+          <TabsTrigger value="outcomes">Outcomes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="directory" className="mt-4 space-y-3">
@@ -541,6 +542,91 @@ export default function AlumniNetwork() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="outcomes" className="mt-4 space-y-4">
+          {(() => {
+            const totalAlumni = alumni.length;
+            const withSoberDate = alumni.filter((a: any) => a.sober_date).length;
+            const stableHousing = checkins.filter((c: any) =>
+              c.housing_status === "independent" || c.housing_status === "sober_living"
+            ).length;
+            const uniqueHoused = new Set(
+              checkins.filter((c: any) => c.housing_status === "independent" || c.housing_status === "sober_living")
+                .map((c: any) => c.alumni_id)
+            ).size;
+            const uniqueEmployed = new Set(
+              checkins.filter((c: any) => c.employment_status === "employed" || c.employment_status === "self_employed")
+                .map((c: any) => c.alumni_id)
+            ).size;
+            const milestones = [30, 60, 90, 180, 365];
+            const milestoneData = milestones.map((m) => {
+              const reached = alumni.filter((a: any) => {
+                if (!a.residents?.move_out_date) return false;
+                const days = differenceInDays(new Date(), parseISO(a.residents.move_out_date));
+                const hasConfirmedCheckin = checkins.some(
+                  (c: any) => c.alumni_id === a.id && c.sobriety_confirmed
+                );
+                return days >= m && hasConfirmedCheckin;
+              }).length;
+              const eligible = alumni.filter((a: any) => {
+                if (!a.residents?.move_out_date) return false;
+                return differenceInDays(new Date(), parseISO(a.residents.move_out_date)) >= m;
+              }).length;
+              return { milestone: `${m} Day`, reached, eligible, rate: eligible > 0 ? Math.round((reached / eligible) * 100) : 0 };
+            });
+
+            return (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card><CardContent className="p-5">
+                    <p className="text-xs text-muted-foreground uppercase">Employed / Self-Employed</p>
+                    <p className="text-2xl font-bold text-blue-600">{uniqueEmployed}</p>
+                    <p className="text-xs text-muted-foreground">{totalAlumni > 0 ? Math.round((uniqueEmployed / totalAlumni) * 100) : 0}% of alumni</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-5">
+                    <p className="text-xs text-muted-foreground uppercase">Stable Housing</p>
+                    <p className="text-2xl font-bold text-green-600">{uniqueHoused}</p>
+                    <p className="text-xs text-muted-foreground">{totalAlumni > 0 ? Math.round((uniqueHoused / totalAlumni) * 100) : 0}% of alumni</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-5">
+                    <p className="text-xs text-muted-foreground uppercase">Active Mentors</p>
+                    <p className="text-2xl font-bold text-purple-600">{pairs.length}</p>
+                    <p className="text-xs text-muted-foreground">active pairings</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-5">
+                    <p className="text-xs text-muted-foreground uppercase">Total Check-Ins</p>
+                    <p className="text-2xl font-bold">{checkins.length}</p>
+                    <p className="text-xs text-muted-foreground">{sobrietyRate}% sobriety confirmed</p>
+                  </CardContent></Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Award className="h-5 w-5" />Sobriety Milestone Retention</CardTitle>
+                    <CardDescription>Percentage of alumni with confirmed sobriety at each milestone post-discharge</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {milestoneData.map((m) => (
+                        <div key={m.milestone} className="flex items-center gap-4">
+                          <span className="w-20 text-sm font-medium">{m.milestone}</span>
+                          <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-500 rounded-full transition-all"
+                              style={{ width: `${m.rate}%` }}
+                            />
+                          </div>
+                          <span className="w-16 text-sm text-right font-medium">{m.rate}%</span>
+                          <span className="w-20 text-xs text-muted-foreground text-right">{m.reached}/{m.eligible}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>

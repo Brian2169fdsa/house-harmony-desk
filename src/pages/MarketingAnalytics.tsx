@@ -162,6 +162,24 @@ export default function MarketingAnalytics() {
   const overallCPL         = totalLeads > 0 ? totalMonthlySpend / totalLeads : 0;
   const overallConvRate    = totalLeads > 0 ? (totalConversions / totalLeads) * 100 : 0;
 
+  // Lead source trend (group leads by month)
+  const leadTrend: Record<string, Record<string, number>> = {};
+  for (const lead of leads) {
+    const month = lead.created_at?.slice(0, 7) ?? "unknown";
+    const source = lead.source ?? "unknown";
+    if (!leadTrend[month]) leadTrend[month] = {};
+    leadTrend[month][source] = (leadTrend[month][source] ?? 0) + 1;
+  }
+  const trendMonths = Object.keys(leadTrend).sort();
+  const allSources = Array.from(new Set(leads.map((l: any) => l.source ?? "unknown")));
+  const trendData = trendMonths.map((m) => ({
+    month: m,
+    ...Object.fromEntries(allSources.map((s) => [s, leadTrend[m]?.[s] ?? 0])),
+  }));
+
+  // Top channel by conversions
+  const topChannel = channelMetrics.reduce((best, c) => c.conversions > (best?.conversions ?? 0) ? c : best, channelMetrics[0]);
+
   // Chart data
   const roiChartData = channelMetrics
     .filter((c) => c.leads > 0 || c.monthlyCost > 0)
@@ -346,6 +364,48 @@ export default function MarketingAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Lead Source Trend Over Time */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Lead Source Trend Over Time</CardTitle>
+          <CardDescription>Monthly lead volume by source</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {trendData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No lead data yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                {allSources.slice(0, 8).map((source, i) => (
+                  <Bar key={source} dataKey={source} stackId="a" fill={COLORS[i % COLORS.length]}
+                    name={CHANNEL_TYPE_LABELS[source] ?? source} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Top Performing Channel */}
+      {topChannel && topChannel.conversions > 0 && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-5 flex items-center gap-4">
+            <TrendingUp className="h-8 w-8 text-green-600" />
+            <div>
+              <p className="font-semibold text-green-900">Top Performing Channel: {topChannel.name}</p>
+              <p className="text-sm text-green-700">
+                {topChannel.conversions} move-ins · {topChannel.convRate.toFixed(1)}% conversion rate · {fmt(topChannel.cpm)} cost per move-in
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

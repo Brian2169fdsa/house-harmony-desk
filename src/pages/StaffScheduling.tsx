@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, AlertTriangle, CheckCircle2, Loader2, Calendar } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, Loader2, Calendar, Download } from "lucide-react";
 import { format, addDays, startOfWeek, parseISO, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 
@@ -90,6 +90,21 @@ export default function StaffScheduling() {
         .from("pto_requests")
         .select("*")
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // All completed time entries for payroll summary
+  const { data: completedEntries = [] } = useQuery({
+    queryKey: ["time_entries_completed", format(weekStart, "yyyy-MM-dd")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("time_entries")
+        .select("*")
+        .not("clock_out", "is", null)
+        .gte("clock_in", format(weekStart, "yyyy-MM-dd"))
+        .lte("clock_in", format(addDays(weekEnd, 1), "yyyy-MM-dd"));
       if (error) throw error;
       return data ?? [];
     },
@@ -204,6 +219,48 @@ export default function StaffScheduling() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const exportPayrollCSV = () => {
+    const staffHours: Record<string, { name: string; regular: number; overtime: number }> = {};
+    for (const entry of completedEntries) {
+      const staff = staffProfiles.find((s: any) => s.user_id === entry.staff_id);
+      const name = staff?.full_name ?? entry.staff_id;
+      if (!staffHours[entry.staff_id]) staffHours[entry.staff_id] = { name, regular: 0, overtime: 0 };
+      staffHours[entry.staff_id].regular += Number(entry.total_hours ?? 0);
+    }
+    // Calculate overtime (over 40h)
+    for (const key of Object.keys(staffHours)) {
+      const entry = staffHours[key];
+      if (entry.regular > 40) {
+        entry.overtime = entry.regular - 40;
+        entry.regular = 40;
+      }
+    }
+    const rows = [
+      ["Employee Name", "Regular Hours", "Overtime Hours", "Total Hours"],
+      ...Object.values(staffHours).map((s) => [
+        s.name, s.regular.toFixed(2), s.overtime.toFixed(2), (s.regular + s.overtime).toFixed(2),
+      ]),
+    ];
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `payroll-${format(weekStart, "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Payroll summary data
+  const payrollSummary = staffProfiles.map((staff: any) => {
+    const entries = completedEntries.filter((e: any) => e.staff_id === staff.user_id);
+    const totalHrs = entries.reduce((s: number, e: any) => s + Number(e.total_hours ?? 0), 0);
+    const regularHrs = Math.min(totalHrs, 40);
+    const overtimeHrs = Math.max(0, totalHrs - 40);
+    const shiftCount = schedules.filter((s: any) => s.staff_id === staff.user_id).length;
+    return { id: staff.user_id, name: staff.full_name, role: staff.role, totalHrs, regularHrs, overtimeHrs, shiftCount, entryCount: entries.length };
+  });
 
   return (
     <div className="space-y-6">
@@ -326,6 +383,7 @@ export default function StaffScheduling() {
         <TabsList>
           <TabsTrigger value="schedule">Weekly Schedule</TabsTrigger>
           <TabsTrigger value="timeclock">Time Clock</TabsTrigger>
+          <TabsTrigger value="payroll">Payroll Summary</TabsTrigger>
           <TabsTrigger value="pto">PTO Requests</TabsTrigger>
         </TabsList>
 
@@ -437,6 +495,60 @@ export default function StaffScheduling() {
               </Card>
             )}
           </div>
+        </TabsContent>
+
+        {/* Payroll Summary */}
+        <TabsContent value="payroll" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Week of {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d, yyyy")}
+            </p>
+            <Button variant="outline" size="sm" onClick={exportPayrollCSV}>
+              <Download className="h-4 w-4 mr-2" />Export Payroll CSV
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-3">Employee</th>
+                    <th className="text-left p-3">Role</th>
+                    <th className="text-right p-3">Shifts</th>
+                    <th className="text-right p-3">Clock Entries</th>
+                    <th className="text-right p-3">Regular Hrs</th>
+                    <th className="text-right p-3">OT Hrs</th>
+                    <th className="text-right p-3">Total Hrs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payrollSummary.map((s) => (
+                    <tr key={s.id} className="border-b hover:bg-muted/20">
+                      <td className="p-3 font-medium">{s.name}</td>
+                      <td className="p-3 text-muted-foreground">{s.role}</td>
+                      <td className="p-3 text-right">{s.shiftCount}</td>
+                      <td className="p-3 text-right">{s.entryCount}</td>
+                      <td className="p-3 text-right">{s.regularHrs.toFixed(1)}</td>
+                      <td className="p-3 text-right">
+                        {s.overtimeHrs > 0 ? (
+                          <span className="text-amber-600 font-medium">{s.overtimeHrs.toFixed(1)}</span>
+                        ) : "0.0"}
+                      </td>
+                      <td className="p-3 text-right font-medium">{s.totalHrs.toFixed(1)}</td>
+                    </tr>
+                  ))}
+                  {payrollSummary.length > 0 && (
+                    <tr className="bg-muted/30 font-medium">
+                      <td className="p-3" colSpan={4}>Totals</td>
+                      <td className="p-3 text-right">{payrollSummary.reduce((s, e) => s + e.regularHrs, 0).toFixed(1)}</td>
+                      <td className="p-3 text-right text-amber-600">{payrollSummary.reduce((s, e) => s + e.overtimeHrs, 0).toFixed(1)}</td>
+                      <td className="p-3 text-right">{payrollSummary.reduce((s, e) => s + e.totalHrs, 0).toFixed(1)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* PTO Requests */}
