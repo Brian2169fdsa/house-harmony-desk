@@ -34,7 +34,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Heart, Plus, Briefcase, Scale, BookOpen, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/contexts/UserRoleContext";
-import { RoleGuard } from "@/components/RoleGuard";
 
 export default function Recovery() {
   const queryClient = useQueryClient();
@@ -198,6 +197,10 @@ export default function Recovery() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meeting_attendance"] });
+      toast({ title: "Meeting verified" });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to verify meeting", variant: "destructive" });
     },
   });
 

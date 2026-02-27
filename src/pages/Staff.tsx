@@ -126,6 +126,9 @@ export default function Staff() {
       queryClient.invalidateQueries({ queryKey: ["staff_profiles"] });
       toast({ title: "Staff status updated" });
     },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to update status", variant: "destructive" });
+    },
   });
 
   const updateRole = useMutation({

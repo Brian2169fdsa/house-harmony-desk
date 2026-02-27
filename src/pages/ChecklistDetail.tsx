@@ -38,7 +38,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  XCircle,
   MinusCircle,
   ChevronLeft,
   ChevronDown,
@@ -132,9 +131,7 @@ export default function ChecklistDetail() {
 
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null);
-  const [noteText, setNoteText] = useState("");
-  const [attachUrl, setAttachUrl] = useState("");
-  const [attachName, setAttachName] = useState("");
+  const [noteTexts, setNoteTexts] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -340,10 +337,10 @@ export default function ChecklistDetail() {
 
   // Add note to item
   const addNote = useMutation({
-    mutationFn: async (item: ChecklistItem) => {
+    mutationFn: async ({ item, note }: { item: ChecklistItem; note: string }) => {
       const combined = item.notes
-        ? `${item.notes}\n\n[${format(new Date(), "MMM d, yyyy HH:mm")}] ${noteText}`
-        : `[${format(new Date(), "MMM d, yyyy HH:mm")}] ${noteText}`;
+        ? `${item.notes}\n\n[${format(new Date(), "MMM d, yyyy HH:mm")}] ${note}`
+        : `[${format(new Date(), "MMM d, yyyy HH:mm")}] ${note}`;
       const { error } = await supabase
         .from("checklist_items")
         .update({ notes: combined })
@@ -354,14 +351,16 @@ export default function ChecklistDetail() {
         checklist_id: id!,
         checklist_item_id: item.id,
         action: "note_added",
-        new_value: { note: noteText, title: item.title } as Json,
+        new_value: { note, title: item.title } as Json,
         performed_by: "current_user",
       });
+
+      return item.id;
     },
-    onSuccess: () => {
+    onSuccess: (itemId) => {
       queryClient.invalidateQueries({ queryKey: ["checklist_items", id] });
       queryClient.invalidateQueries({ queryKey: ["checklist_audit", id] });
-      setNoteText("");
+      setNoteTexts((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
       toast.success("Note added");
     },
     onError: (err: Error) => toast.error(err.message),
@@ -374,27 +373,20 @@ export default function ChecklistDetail() {
       file,
     }: {
       item: ChecklistItem;
-      file: File | null;
+      file: File;
     }) => {
-      let fileUrl = attachUrl;
-      let fileName = attachName || (file?.name ?? "");
-
-      if (file) {
-        setUploading(true);
-        const path = `${id}/${item.id}/${Date.now()}_${file.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("checklist-attachments")
-          .upload(path, file);
-        setUploading(false);
-        if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage
-          .from("checklist-attachments")
-          .getPublicUrl(uploadData.path);
-        fileUrl = urlData.publicUrl;
-        fileName = file.name;
-      }
-
-      if (!fileUrl || !fileName) throw new Error("Provide a file or URL");
+      setUploading(true);
+      const path = `${id}/${item.id}/${Date.now()}_${file.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("checklist-attachments")
+        .upload(path, file);
+      setUploading(false);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage
+        .from("checklist-attachments")
+        .getPublicUrl(uploadData.path);
+      const fileUrl = urlData.publicUrl;
+      const fileName = file.name;
 
       const { error } = await supabase.from("checklist_item_attachments").insert({
         checklist_item_id: item.id,
@@ -417,8 +409,6 @@ export default function ChecklistDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["checklist_items", id] });
       queryClient.invalidateQueries({ queryKey: ["checklist_audit", id] });
-      setAttachUrl("");
-      setAttachName("");
       toast.success("Attachment added");
     },
     onError: (err: Error) => {
@@ -817,18 +807,25 @@ export default function ChecklistDetail() {
                               <Input
                                 placeholder="Add a note..."
                                 className="text-sm h-8"
-                                value={
-                                  editingItem?.id === item.id ? "" : noteText
+                                value={noteTexts[item.id] ?? ""}
+                                onChange={(e) =>
+                                  setNoteTexts((prev) => ({
+                                    ...prev,
+                                    [item.id]: e.target.value,
+                                  }))
                                 }
-                                onChange={(e) => setNoteText(e.target.value)}
-                                onFocus={() => setEditingItem(null)}
                               />
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-8 px-3"
-                                disabled={!noteText.trim()}
-                                onClick={() => addNote.mutate(item)}
+                                disabled={!noteTexts[item.id]?.trim()}
+                                onClick={() =>
+                                  addNote.mutate({
+                                    item,
+                                    note: noteTexts[item.id] ?? "",
+                                  })
+                                }
                               >
                                 <MessageSquare className="h-3.5 w-3.5" />
                               </Button>
@@ -869,6 +866,7 @@ export default function ChecklistDetail() {
                                       const file = e.target.files?.[0];
                                       if (file) {
                                         addAttachment.mutate({ item, file });
+                                        e.target.value = "";
                                       }
                                     }}
                                   />
