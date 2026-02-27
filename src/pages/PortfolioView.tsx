@@ -87,9 +87,12 @@ export default function PortfolioView() {
     const occ      = total > 0 ? (occupied / total) * 100 : 0;
     const snap     = snapshots.find((s: any) => s.house_id === h.id);
     const revenue  = snap ? Number(snap.revenue) : 0;
-    const noi      = snap ? Number(snap.noi ?? (snap.revenue - snap.expenses)) : 0;
+    const expenses = snap ? Number(snap.expenses) : 0;
+    const noi      = snap ? Number(snap.noi ?? (revenue - expenses)) : 0;
+    const revPerBed = total > 0 ? revenue / total : 0;
+    const expenseRatio = revenue > 0 ? (expenses / revenue) * 100 : 0;
     const tickets  = maintenanceOpen.filter((t: any) => t.house_id === h.id).length;
-    return { ...h, total, occupied, occ, revenue, noi, tickets };
+    return { ...h, total, occupied, occ, revenue, expenses, noi, revPerBed, expenseRatio, tickets };
   });
 
   // Portfolio totals
@@ -97,8 +100,11 @@ export default function PortfolioView() {
   const occupiedBeds  = beds.filter((b: any) => b.status === "occupied").length;
   const portfolioOcc  = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
   const totalRevenue  = houseMetrics.reduce((s, h) => s + h.revenue, 0);
+  const totalExpenses = houseMetrics.reduce((s, h) => s + h.expenses, 0);
   const totalNOI      = houseMetrics.reduce((s, h) => s + h.noi, 0);
   const totalTickets  = maintenanceOpen.length;
+  const avgRevPerBed  = totalBeds > 0 ? totalRevenue / totalBeds : 0;
+  const portfolioExpRatio = totalRevenue > 0 ? (totalExpenses / totalRevenue) * 100 : 0;
 
   const toggleSelect = (id: string) => {
     setSelected((prev) =>
@@ -121,14 +127,18 @@ export default function PortfolioView() {
       </div>
 
       {/* Portfolio KPI bar */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {[
           { label: "Properties",   value: houses.length.toString(),          icon: Building2 },
           { label: "Total Beds",   value: totalBeds.toString(),              icon: Home },
-          { label: "Occupied",     value: occupiedBeds.toString(),           icon: Users },
           { label: "Occupancy",    value: fmtPct(portfolioOcc),             icon: BarChart3,
             color: portfolioOcc >= 90 ? "text-green-600" : portfolioOcc >= 70 ? "text-yellow-600" : "text-red-600" },
           { label: "Mo. Revenue",  value: fmt(totalRevenue),                icon: DollarSign },
+          { label: "Monthly NOI",  value: fmt(totalNOI),                    icon: TrendingUp,
+            color: totalNOI >= 0 ? "text-green-600" : "text-red-600" },
+          { label: "Rev / Bed",    value: fmt(avgRevPerBed),                icon: DollarSign },
+          { label: "Expense Ratio", value: fmtPct(portfolioExpRatio),       icon: BarChart3,
+            color: portfolioExpRatio <= 60 ? "text-green-600" : portfolioExpRatio <= 80 ? "text-yellow-600" : "text-red-600" },
           { label: "Open Tickets", value: totalTickets.toString(),          icon: Wrench,
             color: totalTickets > 5 ? "text-red-600" : "text-foreground" },
         ].map(({ label, value, icon: Icon, color = "text-foreground" }) => (
@@ -190,7 +200,7 @@ export default function PortfolioView() {
 
                 <OccupancyGauge rate={h.occ} />
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground">Beds</p>
                     <p className="font-semibold">{h.occupied}/{h.total}</p>
@@ -200,9 +210,19 @@ export default function PortfolioView() {
                     <p className="font-semibold">{fmt(h.revenue)}</p>
                   </div>
                   <div>
+                    <p className="text-xs text-muted-foreground">Rev / Bed</p>
+                    <p className="font-semibold">{fmt(h.revPerBed)}</p>
+                  </div>
+                  <div>
                     <p className="text-xs text-muted-foreground">Monthly NOI</p>
                     <p className={`font-semibold ${h.noi >= 0 ? "text-green-600" : "text-red-600"}`}>
                       {fmt(h.noi)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Exp. Ratio</p>
+                    <p className={`font-semibold ${h.expenseRatio <= 60 ? "text-green-600" : h.expenseRatio <= 80 ? "text-yellow-600" : "text-red-600"}`}>
+                      {fmtPct(h.expenseRatio)}
                     </p>
                   </div>
                   <div>
@@ -246,11 +266,13 @@ export default function PortfolioView() {
                 </thead>
                 <tbody>
                   {[
-                    { label: "Total Beds",   get: (h: any) => h.total.toString() },
+                    { label: "Total Beds",    get: (h: any) => h.total.toString() },
                     { label: "Occupied",      get: (h: any) => h.occupied.toString() },
                     { label: "Occupancy",     get: (h: any) => fmtPct(h.occ) },
                     { label: "Mo. Revenue",   get: (h: any) => fmt(h.revenue) },
+                    { label: "Rev / Bed",     get: (h: any) => fmt(h.revPerBed) },
                     { label: "Monthly NOI",   get: (h: any) => fmt(h.noi) },
+                    { label: "Expense Ratio", get: (h: any) => fmtPct(h.expenseRatio) },
                     { label: "Open Tickets",  get: (h: any) => h.tickets.toString() },
                   ].map(({ label, get }) => (
                     <tr key={label} className="border-b">

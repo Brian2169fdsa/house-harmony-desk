@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Bell, CheckCheck, ExternalLink } from "lucide-react";
+import { Bell, CheckCheck, ExternalLink, Filter } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +22,7 @@ export function NotificationCenter() {
   const navigate    = useNavigate();
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -110,6 +111,25 @@ export function NotificationCenter() {
           </div>
         </div>
 
+        {notifications.length > 0 && (
+          <div className="flex gap-1 px-3 py-2 border-b overflow-x-auto">
+            {["all", "payments", "maintenance", "compliance", "intake", "general"].map((cat) => (
+              <button
+                key={cat}
+                className={`text-[10px] px-2 py-1 rounded-full whitespace-nowrap transition-colors ${
+                  filterCategory === cat
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+                onClick={() => setFilterCategory(cat)}
+              >
+                {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {cat !== "all" && ` (${notifications.filter((n: any) => n.category === cat).length})`}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="max-h-[480px] overflow-y-auto divide-y">
           {notifications.length === 0 ? (
             <div className="px-4 py-8 text-center">
@@ -117,7 +137,9 @@ export function NotificationCenter() {
               <p className="text-sm text-muted-foreground">No notifications yet</p>
             </div>
           ) : (
-            notifications.map((n: any) => (
+            notifications
+              .filter((n: any) => filterCategory === "all" || n.category === filterCategory)
+              .map((n: any) => (
               <button
                 key={n.id}
                 className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${n.status !== "read" ? "bg-blue-50/50" : ""}`}
