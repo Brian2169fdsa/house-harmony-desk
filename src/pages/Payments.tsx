@@ -31,6 +31,7 @@ import { Plus, Download, DollarSign } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentAgentDashboard } from "@/components/payments/PaymentAgentDashboard";
 
 type InvoiceStatus = "pending" | "paid" | "overdue" | "partial" | "void";
 
@@ -65,6 +66,8 @@ export default function Payments() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showMarkPaidDialog, setShowMarkPaidDialog] = useState<Invoice | null>(null);
   const { toast } = useToast();
+
+  const paymentAgentEnabled = typeof window !== "undefined" && localStorage.getItem("ENABLE_PAYMENT_AGENT") === "true";
   const queryClient = useQueryClient();
 
   // Form state for creating invoice
@@ -205,6 +208,8 @@ export default function Payments() {
           </Button>
         </div>
       </div>
+
+      {paymentAgentEnabled && <PaymentAgentDashboard />}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
