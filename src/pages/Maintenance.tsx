@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Wrench, Phone, Clock, CheckCircle2 } from "lucide-react";
+import { Wrench, Phone, Clock, CheckCircle2, Paperclip, X, ExternalLink } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -20,11 +20,14 @@ const maintenanceSchema = z.object({
   description: z.string().max(2000, "Description too long").optional().or(z.literal("")),
   priority: z.enum(["low", "medium", "high"]),
   houseId: z.string().uuid("Invalid house selection"),
-  serviceId: z.string().uuid("Invalid service selection")
+  serviceId: z.string().uuid("Invalid service selection"),
 });
+
+const BUCKET = "maintenance-attachments";
 
 export default function Maintenance() {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     houseId: "",
@@ -34,8 +37,9 @@ export default function Maintenance() {
     priority: "medium",
     requestedForAt: "",
   });
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
-  // Fetch houses
   const { data: houses } = useQuery({
     queryKey: ["houses"],
     queryFn: async () => {
@@ -45,7 +49,6 @@ export default function Maintenance() {
     },
   });
 
-  // Fetch services
   const { data: services } = useQuery({
     queryKey: ["services"],
     queryFn: async () => {
@@ -55,7 +58,6 @@ export default function Maintenance() {
     },
   });
 
-  // Fetch vendors with services
   const { data: vendors } = useQuery({
     queryKey: ["vendors"],
     queryFn: async () => {
@@ -68,7 +70,6 @@ export default function Maintenance() {
     },
   });
 
-  // Fetch maintenance requests with relations
   const { data: maintenanceRequests } = useQuery({
     queryKey: ["maintenanceRequests"],
     queryFn: async () => {
@@ -81,7 +82,6 @@ export default function Maintenance() {
     },
   });
 
-  // Auto-select vendor when service changes
   const selectedVendor = formData.serviceId
     ? vendors?.find((v) =>
         v.vendor_services?.some(
@@ -90,7 +90,6 @@ export default function Maintenance() {
       )
     : null;
 
-  // Create maintenance request mutation
   const createRequest = useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from("maintenance_requests").insert([data]);
@@ -100,21 +99,13 @@ export default function Maintenance() {
       queryClient.invalidateQueries({ queryKey: ["maintenanceRequests"] });
       toast({ title: "Maintenance request created" });
       setDialogOpen(false);
-      setFormData({
-        houseId: "",
-        serviceId: "",
-        title: "",
-        description: "",
-        priority: "medium",
-        requestedForAt: "",
-      });
+      resetForm();
     },
     onError: () => {
       toast({ title: "Failed to create request", variant: "destructive" });
     },
   });
 
-  // Update status mutation
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const updateData: any = { status };
@@ -133,30 +124,103 @@ export default function Maintenance() {
     },
   });
 
-  const handleSubmit = () => {
+  const resetForm = () => {
+    setFormData({
+      houseId: "",
+      serviceId: "",
+      title: "",
+      description: "",
+      priority: "medium",
+      requestedForAt: "",
+    });
+    setAttachmentFiles([]);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const newFiles = Array.from(e.target.files);
+    setAttachmentFiles((prev) => [...prev, ...newFiles]);
+    e.target.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setAttachmentFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFiles = async (requestId: string): Promise<Array<{ name: string; path: string; url: string }>> => {
+    const uploaded: Array<{ name: string; path: string; url: string }> = [];
+    for (const file of attachmentFiles) {
+      const path = `${requestId}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file);
+      if (error) {
+        console.error("Upload error:", error.message);
+        continue;
+      }
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      uploaded.push({ name: file.name, path, url: urlData.publicUrl });
+    }
+    return uploaded;
+  };
+
+  const handleSubmit = async () => {
     const result = maintenanceSchema.safeParse({
       title: formData.title,
       description: formData.description,
       priority: formData.priority,
       houseId: formData.houseId,
-      serviceId: formData.serviceId
+      serviceId: formData.serviceId,
     });
-    
+
     if (!result.success) {
       toast({ title: result.error.errors[0].message, variant: "destructive" });
       return;
     }
-    
-    createRequest.mutate({
-      house_id: formData.houseId,
-      service_id: formData.serviceId,
-      vendor_id: selectedVendor?.id || null,
-      title: formData.title,
-      description: formData.description,
-      priority: formData.priority,
-      requested_for_at: formData.requestedForAt || null,
-    });
+
+    setUploading(true);
+    try {
+      // Insert request first to get ID
+      const { data: inserted, error: insertError } = await supabase
+        .from("maintenance_requests")
+        .insert([
+          {
+            house_id: formData.houseId,
+            service_id: formData.serviceId,
+            vendor_id: selectedVendor?.id || null,
+            title: formData.title,
+            description: formData.description,
+            priority: formData.priority,
+            requested_for_at: formData.requestedForAt || null,
+          },
+        ])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      let attachments: any[] = [];
+      if (attachmentFiles.length > 0 && inserted?.id) {
+        attachments = await uploadFiles(inserted.id);
+        if (attachments.length > 0) {
+          await supabase
+            .from("maintenance_requests")
+            .update({ attachments })
+            .eq("id", inserted.id);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["maintenanceRequests"] });
+      toast({ title: "Maintenance request created" });
+      setDialogOpen(false);
+      resetForm();
+    } catch (err: any) {
+      toast({ title: err.message || "Failed to create request", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const getAttachmentPublicUrl = (path: string) =>
+    supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
   const pendingRequests = maintenanceRequests?.filter((r) => r.status === "pending") || [];
   const scheduledRequests =
@@ -168,85 +232,110 @@ export default function Maintenance() {
     ) || [];
   const completedRequests = maintenanceRequests?.filter((r) => r.status === "complete") || [];
 
-  const renderRequestCard = (request: any) => (
-    <Card key={request.id} className="mb-4">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{request.title}</CardTitle>
-            <CardDescription>
-              <Badge variant="outline" className="mr-2">
-                {request.houses?.name}
-              </Badge>
-              {request.services?.name}
-            </CardDescription>
+  const renderRequestCard = (request: any) => {
+    const attachments: Array<{ name: string; path: string; url: string }> =
+      Array.isArray(request.attachments) ? request.attachments : [];
+
+    return (
+      <Card key={request.id} className="mb-4">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-lg">{request.title}</CardTitle>
+              <CardDescription>
+                <Badge variant="outline" className="mr-2">
+                  {request.houses?.name}
+                </Badge>
+                {request.services?.name}
+              </CardDescription>
+            </div>
+            <Badge
+              variant={
+                request.priority === "high"
+                  ? "destructive"
+                  : request.priority === "medium"
+                  ? "default"
+                  : "secondary"
+              }
+            >
+              {request.priority}
+            </Badge>
           </div>
-          <Badge
-            variant={
-              request.priority === "high"
-                ? "destructive"
-                : request.priority === "medium"
-                ? "default"
-                : "secondary"
-            }
-          >
-            {request.priority}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {request.vendors && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">{request.vendors.name}</span>
-            {request.vendors.discount_pct > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                Trusted Partner · {request.vendors.discount_pct}% Discount
-              </Badge>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {request.vendors && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium">{request.vendors.name}</span>
+              {request.vendors.discount_pct > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  Trusted Partner · {request.vendors.discount_pct}% Discount
+                </Badge>
+              )}
+            </div>
+          )}
+          {request.requested_for_at && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              {format(new Date(request.requested_for_at), "PPp")}
+            </div>
+          )}
+          {request.vendors?.phone && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Phone className="h-4 w-4" />
+              <a href={`tel:${request.vendors.phone}`} className="underline">
+                {request.vendors.phone}
+              </a>
+            </div>
+          )}
+          {attachments.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Attachments</p>
+              <div className="flex flex-wrap gap-2">
+                {attachments.map((att, i) => (
+                  <a
+                    key={i}
+                    href={att.url || getAttachmentPublicUrl(att.path)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary underline"
+                  >
+                    <Paperclip className="h-3 w-3" />
+                    {att.name}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <Select
+              value={request.status}
+              onValueChange={(value) => updateStatus.mutate({ id: request.id, status: value })}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="complete">Complete</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
+              </SelectContent>
+            </Select>
+            {request.status !== "complete" && (
+              <Button
+                size="sm"
+                onClick={() => updateStatus.mutate({ id: request.id, status: "complete" })}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Mark Complete
+              </Button>
             )}
           </div>
-        )}
-        {request.requested_for_at && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            {format(new Date(request.requested_for_at), "PPp")}
-          </div>
-        )}
-        {request.vendors?.phone && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="h-4 w-4" />
-            <a href={`tel:${request.vendors.phone}`} className="underline">
-              {request.vendors.phone}
-            </a>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <Select
-            value={request.status}
-            onValueChange={(value) => updateStatus.mutate({ id: request.id, status: value })}
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="complete">Complete</SelectItem>
-              <SelectItem value="canceled">Canceled</SelectItem>
-            </SelectContent>
-          </Select>
-          {request.status !== "complete" && (
-            <Button
-              size="sm"
-              onClick={() => updateStatus.mutate({ id: request.id, status: "complete" })}
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              Mark Complete
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="container py-6">
@@ -262,7 +351,7 @@ export default function Maintenance() {
           <DialogTrigger asChild>
             <Button>New Request</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Maintenance Request</DialogTitle>
               <DialogDescription>Fill in the details for the new request</DialogDescription>
@@ -270,7 +359,10 @@ export default function Maintenance() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="house">House *</Label>
-                <Select value={formData.houseId} onValueChange={(v) => setFormData({ ...formData, houseId: v })}>
+                <Select
+                  value={formData.houseId}
+                  onValueChange={(v) => setFormData({ ...formData, houseId: v })}
+                >
                   <SelectTrigger id="house">
                     <SelectValue placeholder="Select house" />
                   </SelectTrigger>
@@ -285,7 +377,10 @@ export default function Maintenance() {
               </div>
               <div>
                 <Label htmlFor="service">Service *</Label>
-                <Select value={formData.serviceId} onValueChange={(v) => setFormData({ ...formData, serviceId: v })}>
+                <Select
+                  value={formData.serviceId}
+                  onValueChange={(v) => setFormData({ ...formData, serviceId: v })}
+                >
                   <SelectTrigger id="service">
                     <SelectValue placeholder="Select service" />
                   </SelectTrigger>
@@ -329,7 +424,10 @@ export default function Maintenance() {
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={formData.priority} onValueChange={(v) => setFormData({ ...formData, priority: v })}>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(v) => setFormData({ ...formData, priority: v })}
+                >
                   <SelectTrigger id="priority">
                     <SelectValue />
                   </SelectTrigger>
@@ -349,8 +447,53 @@ export default function Maintenance() {
                   onChange={(e) => setFormData({ ...formData, requestedForAt: e.target.value })}
                 />
               </div>
-              <Button onClick={handleSubmit} className="w-full">
-                Create Request
+
+              {/* File attachments */}
+              <div>
+                <Label>Attachments (photos/files)</Label>
+                <div className="mt-1 space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Paperclip className="h-4 w-4 mr-2" />
+                    Add Photos / Files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  {attachmentFiles.length > 0 && (
+                    <div className="space-y-1">
+                      {attachmentFiles.map((file, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between text-xs bg-muted rounded px-2 py-1"
+                        >
+                          <span className="truncate max-w-[200px]">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(i)}
+                            className="ml-2 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button onClick={handleSubmit} className="w-full" disabled={uploading}>
+                {uploading ? "Uploading..." : "Create Request"}
               </Button>
             </div>
           </DialogContent>
