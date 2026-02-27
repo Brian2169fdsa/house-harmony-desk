@@ -12,9 +12,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Wrench, Phone, Clock, CheckCircle2, Paperclip, X, ExternalLink } from "lucide-react";
+import { Wrench, Phone, Clock, CheckCircle2, Paperclip, X, ExternalLink, MessageSquare, DollarSign, Star, AlertTriangle, Send } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, differenceInHours, differenceInMinutes, parseISO } from "date-fns";
 
 const maintenanceSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200, "Title too long"),
@@ -81,6 +81,64 @@ export default function Maintenance() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: slaRules = [] } = useQuery({
+    queryKey: ["maintenance_sla_rules"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("maintenance_sla_rules").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: allComments = [] } = useQuery({
+    queryKey: ["maintenance_comments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("maintenance_comments")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: allCosts = [] } = useQuery({
+    queryKey: ["maintenance_costs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("maintenance_costs").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: vendorRatings = [] } = useQuery({
+    queryKey: ["vendor_ratings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vendor_ratings").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
+
+  const addComment = useMutation({
+    mutationFn: async ({ requestId, comment }: { requestId: string; comment: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("maintenance_comments").insert({
+        request_id: requestId,
+        user_id: user?.id,
+        comment,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance_comments"] });
+      setCommentText((prev) => ({ ...prev, [vars.requestId]: "" }));
+    },
+    onError: () => toast({ title: "Failed to add comment", variant: "destructive" }),
   });
 
   const selectedVendor = formData.serviceId
