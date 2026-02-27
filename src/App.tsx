@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import FeatureGate from "./components/FeatureGate";
 import { UserRoleProvider } from "./contexts/UserRoleContext";
+import { AssistantProvider } from "./contexts/AssistantContext";
+import { AssistantPanel } from "./components/assistant/AssistantPanel";
+import { AssistantFAB } from "./components/assistant/AssistantFAB";
 import Overview from "./pages/Overview";
 import Houses from "./pages/Houses";
 import HouseDetail from "./pages/HouseDetail";
@@ -38,6 +41,17 @@ import StaffScheduling from "./pages/StaffScheduling";
 import InvestorManagement from "./pages/InvestorManagement";
 import MaintenanceBudgets from "./pages/MaintenanceBudgets";
 import PreventiveMaintenance from "./pages/PreventiveMaintenance";
+import AlumniNetwork from "./pages/AlumniNetwork";
+import AgentHub from "./pages/AgentHub";
+import AgentActivityLog from "./pages/AgentActivityLog";
+import ComplianceDashboard from "./pages/ComplianceDashboard";
+import MarketingAnalytics from "./pages/MarketingAnalytics";
+import NotificationSettings from "./pages/NotificationSettings";
+import QuickBooksSettings from "./pages/QuickBooksSettings";
+import QuickBooksSyncDashboard from "./pages/QuickBooksSyncDashboard";
+import QuickBooksReports from "./pages/QuickBooksReports";
+import MessageTemplateManager from "./pages/MessageTemplateManager";
+import PortfolioView from "./pages/PortfolioView";
 import DrugTests from "./pages/DrugTests";
 import Recovery from "./pages/Recovery";
 import Documents from "./pages/Documents";
@@ -45,6 +59,12 @@ import Checklists from "./pages/Checklists";
 import ChecklistDetail from "./pages/ChecklistDetail";
 import DocumentGenerate from "./pages/DocumentGenerate";
 import Emergency from "./pages/Emergency";
+import OccupancyDashboard from "./pages/OccupancyDashboard";
+import ReportCenter from "./pages/ReportCenter";
+import CommunicationCenter from "./pages/CommunicationCenter";
+import CommunicationHistory from "./pages/CommunicationHistory";
+import CommunicationTemplates from "./pages/CommunicationTemplates";
+import AuditLog from "./pages/AuditLog";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
@@ -115,6 +135,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <UserRoleProvider>
+            <AssistantProvider>
             <Routes>
               <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
 
@@ -157,8 +178,27 @@ const App = () => {
               <Route path="/investor-portal/investors" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorManagement /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/quickbooks" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooks /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/alumni" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ALUMNI"><AlumniNetwork /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/agents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><AgentHub /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/agents/activity" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><AgentActivityLog /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/compliance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><ComplianceDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/analytics/marketing" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><MarketingAnalytics /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/notification-settings" element={<ProtectedRoute><MainLayout><NotificationSettings /></MainLayout></ProtectedRoute>} />
+              <Route path="/quickbooks/settings" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksSettings /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/quickbooks/sync" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksSyncDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/quickbooks/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksReports /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/messages/templates" element={<ProtectedRoute><MainLayout><MessageTemplateManager /></MainLayout></ProtectedRoute>} />
+              <Route path="/occupancy" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_OCCUPANCY_OPTIMIZER"><OccupancyDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_REPORTS"><ReportCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/communications" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/communications/history" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationHistory /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/communications/templates" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationTemplates /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/audit-log" element={<ProtectedRoute><MainLayout><AuditLog /></MainLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <AssistantPanel />
+            <AssistantFAB />
+            </AssistantProvider>
           </UserRoleProvider>
         </BrowserRouter>
       </TooltipProvider>
