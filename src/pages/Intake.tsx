@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Phone, Mail } from "lucide-react";
+import { Plus, Phone, Mail, Bot, ClipboardList } from "lucide-react";
+import { IntakeScreeningPanel } from "@/components/intake/IntakeScreeningPanel";
+import { ScreeningQuestionnaire } from "@/components/intake/ScreeningQuestionnaire";
 
 const STAGES = [
   { id: "lead", label: "Lead", status: "lead" },
@@ -31,12 +33,16 @@ const leadSchema = z.object({
 export default function Intake() {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [screeningLead, setScreeningLead] = useState<any | null>(null);
   const [newLead, setNewLead] = useState({
     name: "",
     phone: "",
     email: "",
     referral_source: "",
   });
+
+  const agentEnabled = typeof window !== "undefined" && localStorage.getItem("ENABLE_AI_AGENTS") === "true";
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["intake-leads"],
@@ -47,6 +53,26 @@ export default function Intake() {
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Screening stats
+  const { data: screeningStats } = useQuery({
+    queryKey: ["screening-stats"],
+    enabled: agentEnabled,
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("ai_screening_results")
+        .select("fit_score, agent_recommendation, screened_at")
+        .gte("screened_at", `${today}T00:00:00`);
+      if (error) throw error;
+      const results = data ?? [];
+      const totalToday = results.length;
+      const avgScore = totalToday > 0 ? Math.round(results.reduce((s, r) => s + (r.fit_score ?? 0), 0) / totalToday) : 0;
+      const approved = results.filter((r) => r.agent_recommendation === "approve").length;
+      const review = results.filter((r) => r.agent_recommendation === "review").length;
+      return { totalToday, avgScore, approved, review };
     },
   });
 
@@ -127,13 +153,13 @@ export default function Intake() {
 
   const handleCreateLead = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const result = leadSchema.safeParse(newLead);
     if (!result.success) {
       toast.error(result.error.errors[0].message);
       return;
     }
-    
+
     createLeadMutation.mutate(result.data);
   };
 
@@ -213,6 +239,36 @@ export default function Intake() {
         </Dialog>
       </div>
 
+      {/* Screening stats bar */}
+      {agentEnabled && screeningStats && screeningStats.totalToday > 0 && (
+        <div className="grid grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-lg font-bold">{screeningStats.totalToday}</p>
+              <p className="text-xs text-muted-foreground">Screened Today</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-lg font-bold">{screeningStats.avgScore}</p>
+              <p className="text-xs text-muted-foreground">Avg Fit Score</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-lg font-bold text-green-600">{screeningStats.approved}</p>
+              <p className="text-xs text-muted-foreground">Auto-Approved</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-3 px-4">
+              <p className="text-lg font-bold text-amber-600">{screeningStats.review}</p>
+              <p className="text-xs text-muted-foreground">Flagged for Review</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {STAGES.map((stage) => {
           const stageLeads = getLeadsByStage(stage.status);
@@ -224,68 +280,92 @@ export default function Intake() {
               </div>
               <div className="space-y-2">
                 {stageLeads.map((lead) => (
-                  <Card key={lead.id} className="p-3">
-                    <CardHeader className="p-0 pb-2">
-                      <CardTitle className="text-sm font-medium">{lead.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0 space-y-1">
-                      {lead.phone && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3 mr-1" />
-                          {lead.phone}
-                        </div>
-                      )}
-                      {lead.email && (
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Mail className="h-3 w-3 mr-1" />
-                          {lead.email}
-                        </div>
-                      )}
-                      {lead.referral_source && (
-                        <p className="text-xs text-muted-foreground">
-                          Source: {lead.referral_source}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Updated: {new Date(lead.updated_at).toLocaleDateString()}
-                      </p>
-                      <div className="space-y-1 pt-2">
-                        <Select
-                          value={lead.status}
-                          onValueChange={(value) =>
-                            updateLeadStatusMutation.mutate({ id: lead.id, status: value })
-                          }
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STAGES.map((s) => (
-                              <SelectItem key={s.status} value={s.status} className="text-xs">
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {lead.status === "movein" && (
-                          <Button
-                            size="sm"
-                            className="w-full h-7 text-xs"
-                            onClick={() => convertToResidentMutation.mutate(lead.id)}
-                            disabled={convertToResidentMutation.isPending}
-                          >
-                            Convert to Resident
-                          </Button>
+                  <div key={lead.id} className="space-y-2">
+                    <Card className="p-3">
+                      <CardHeader className="p-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{lead.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0 space-y-1">
+                        {lead.phone && (
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3 mr-1" />
+                            {lead.phone}
+                          </div>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        {lead.email && (
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3 mr-1" />
+                            {lead.email}
+                          </div>
+                        )}
+                        {lead.referral_source && (
+                          <p className="text-xs text-muted-foreground">
+                            Source: {lead.referral_source}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Updated: {new Date(lead.updated_at).toLocaleDateString()}
+                        </p>
+                        <div className="space-y-1 pt-2">
+                          <Select
+                            value={lead.status}
+                            onValueChange={(value) =>
+                              updateLeadStatusMutation.mutate({ id: lead.id, status: value })
+                            }
+                          >
+                            <SelectTrigger className="h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STAGES.map((s) => (
+                                <SelectItem key={s.status} value={s.status} className="text-xs">
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {agentEnabled && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full h-7 text-xs"
+                              onClick={() => setScreeningLead(lead)}
+                            >
+                              <ClipboardList className="h-3 w-3 mr-1" />
+                              Phone Screen
+                            </Button>
+                          )}
+                          {lead.status === "movein" && (
+                            <Button
+                              size="sm"
+                              className="w-full h-7 text-xs"
+                              onClick={() => convertToResidentMutation.mutate(lead.id)}
+                              disabled={convertToResidentMutation.isPending}
+                            >
+                              Convert to Resident
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    {/* AI Screening panel inline */}
+                    {agentEnabled && <IntakeScreeningPanel lead={lead} />}
+                  </div>
                 ))}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Screening questionnaire dialog */}
+      {screeningLead && (
+        <ScreeningQuestionnaire
+          lead={screeningLead}
+          open={!!screeningLead}
+          onClose={() => setScreeningLead(null)}
+        />
+      )}
     </div>
   );
 }
