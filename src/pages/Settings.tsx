@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useUserRole } from "@/contexts/UserRoleContext";
+import { Link2, Link2Off, CheckCircle2, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
@@ -24,10 +26,15 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { profile, role } = useUserRole();
 
+  const navigate = useNavigate();
+
   // Feature flags (localStorage-based)
   const [enableIntake, setEnableIntake] = useState(false);
   const [enableCRM, setEnableCRM] = useState(false);
   const [enableMaintenance, setEnableMaintenance] = useState(false);
+  const [enableAnalytics, setEnableAnalytics] = useState(false);
+  const [enableInvestorPortal, setEnableInvestorPortal] = useState(false);
+  const [enableQuickBooks, setEnableQuickBooks] = useState(false);
 
   // Facility settings form state
   const [facilityName, setFacilityName] = useState("");
@@ -44,6 +51,9 @@ export default function Settings() {
     setEnableIntake(localStorage.getItem("ENABLE_INTAKE") === "true");
     setEnableCRM(localStorage.getItem("ENABLE_CRM") === "true");
     setEnableMaintenance(localStorage.getItem("ENABLE_MAINTENANCE") === "true");
+    setEnableAnalytics(localStorage.getItem("ENABLE_ANALYTICS") === "true");
+    setEnableInvestorPortal(localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true");
+    setEnableQuickBooks(localStorage.getItem("ENABLE_QUICKBOOKS") === "true");
   }, []);
 
   // Load facility settings from DB
@@ -108,8 +118,26 @@ export default function Settings() {
     if (flag === "ENABLE_INTAKE") setEnableIntake(enabled);
     if (flag === "ENABLE_CRM") setEnableCRM(enabled);
     if (flag === "ENABLE_MAINTENANCE") setEnableMaintenance(enabled);
+    if (flag === "ENABLE_ANALYTICS") setEnableAnalytics(enabled);
+    if (flag === "ENABLE_INVESTOR_PORTAL") setEnableInvestorPortal(enabled);
+    if (flag === "ENABLE_QUICKBOOKS") setEnableQuickBooks(enabled);
     toast.success("Feature flag updated. Refresh the page to see changes.");
   };
+
+  // QuickBooks connection state
+  const { data: qbConnection } = useQuery({
+    queryKey: ["qb_connection_settings"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase
+        .from("qb_connections")
+        .select("id, status, company_name, connected_at")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -271,6 +299,108 @@ export default function Settings() {
                 }
               />
             </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Analytics Dashboard</Label>
+                <p className="text-sm text-muted-foreground">
+                  Occupancy, revenue, retention, pipeline & collection charts
+                </p>
+              </div>
+              <Switch
+                checked={enableAnalytics}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_ANALYTICS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Investor Portal</Label>
+                <p className="text-sm text-muted-foreground">
+                  Read-only property P&L, NOI, cap rate & PDF reports for investors
+                </p>
+              </div>
+              <Switch
+                checked={enableInvestorPortal}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_INVESTOR_PORTAL", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable QuickBooks Integration</Label>
+                <p className="text-sm text-muted-foreground">
+                  Sync invoices, payments & expenses with QuickBooks Online
+                </p>
+              </div>
+              <Switch
+                checked={enableQuickBooks}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_QUICKBOOKS", checked)
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* QuickBooks Connection Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              QuickBooks Connection
+            </CardTitle>
+            <CardDescription>
+              Connect your QuickBooks Online account to sync financial data automatically
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {qbConnection?.status === "active" ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-sm text-green-700">{qbConnection.company_name ?? "QuickBooks Online"}</p>
+                    <p className="text-xs text-green-600">Connected and syncing</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => navigate("/quickbooks")}>
+                    Manage
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user || !qbConnection) return;
+                      await supabase.from("qb_connections").update({ status: "disconnected" }).eq("id", qbConnection.id);
+                      queryClient.invalidateQueries({ queryKey: ["qb_connection_settings"] });
+                      toast.success("QuickBooks disconnected");
+                    }}
+                  >
+                    <Link2Off className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Not connected. Enable the QuickBooks feature flag above, then click below to start the OAuth2 connection flow.
+                </p>
+                <Button
+                  disabled={!enableQuickBooks}
+                  onClick={() => {
+                    if (enableQuickBooks) navigate("/quickbooks");
+                    else toast.info("Enable the QuickBooks feature flag first.");
+                  }}
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Connect to QuickBooks Online
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

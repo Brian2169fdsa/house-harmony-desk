@@ -22,6 +22,12 @@ import CRM from "./pages/CRM";
 import CRMContactDetail from "./pages/CRMContactDetail";
 import CRMReferrals from "./pages/CRMReferrals";
 import Maintenance from "./pages/Maintenance";
+import StartupWizardList from "./pages/StartupWizardList";
+import StartupWizard from "./pages/StartupWizard";
+import Analytics from "./pages/Analytics";
+import InvestorPortal from "./pages/InvestorPortal";
+import Projections from "./pages/Projections";
+import QuickBooks from "./pages/QuickBooks";
 import Staff from "./pages/Staff";
 import DrugTests from "./pages/DrugTests";
 import Recovery from "./pages/Recovery";
@@ -121,6 +127,12 @@ const App = () => {
               <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Analytics /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/investor-portal" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorPortal /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/quickbooks" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooks /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </UserRoleProvider>

@@ -18,6 +18,10 @@ import {
   FileText,
   ShieldAlert,
   UserCog,
+  BarChart2,
+  TrendingUp,
+  Calculator,
+  Link2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,6 +65,10 @@ const adminItems = [
 const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
 const maintenanceItem = { title: "Maintenance", url: "/maintenance", icon: Wrench };
+const analyticsItem = { title: "Analytics", url: "/analytics", icon: BarChart2 };
+const projectionsItem = { title: "Projections", url: "/projections", icon: Calculator };
+const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
+const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
 
 function NavGroup({
   label,
@@ -106,11 +114,20 @@ export function AppSidebar() {
   const enableIntake = typeof window !== "undefined" && localStorage.getItem("ENABLE_INTAKE") === "true";
   const enableCRM = typeof window !== "undefined" && localStorage.getItem("ENABLE_CRM") === "true";
   const enableMaintenance = typeof window !== "undefined" && localStorage.getItem("ENABLE_MAINTENANCE") === "true";
+  const enableAnalytics = typeof window !== "undefined" && localStorage.getItem("ENABLE_ANALYTICS") === "true";
+  const enableInvestorPortal = typeof window !== "undefined" && localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true";
+  const enableQuickBooks = typeof window !== "undefined" && localStorage.getItem("ENABLE_QUICKBOOKS") === "true";
 
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
     ...(enableMaintenance ? [maintenanceItem] : []),
+  ];
+
+  const analyticsItems = [
+    ...(enableAnalytics ? [analyticsItem, projectionsItem] : []),
+    ...(enableInvestorPortal ? [investorPortalItem] : []),
+    ...(enableQuickBooks ? [quickBooksItem] : []),
   ];
 
   return (
@@ -124,6 +141,10 @@ export function AppSidebar() {
 
         {featureItems.length > 0 && (
           <NavGroup label="Features" items={featureItems} open={open} />
+        )}
+
+        {analyticsItems.length > 0 && (
+          <NavGroup label="Analytics & Finance" items={analyticsItems} open={open} />
         )}
 
         <NavGroup label="Resident Care" items={residentCareItems} open={open} />
