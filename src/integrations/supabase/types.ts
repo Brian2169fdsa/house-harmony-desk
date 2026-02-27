@@ -704,6 +704,199 @@ export type Database = {
         }
         Relationships: []
       }
+      facility_settings: {
+        Row: {
+          id: string
+          facility_name: string
+          address: string
+          total_beds: number | null
+          default_rent_amount: number | null
+          deposit_cap: number | null
+          auto_monthly_invoices: boolean | null
+          notification_payment_reminders: boolean | null
+          notification_incident_alerts: boolean | null
+          notification_daily_summary: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          facility_name?: string
+          address?: string
+          total_beds?: number | null
+          default_rent_amount?: number | null
+          deposit_cap?: number | null
+          auto_monthly_invoices?: boolean | null
+          notification_payment_reminders?: boolean | null
+          notification_incident_alerts?: boolean | null
+          notification_daily_summary?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          facility_name?: string
+          address?: string
+          total_beds?: number | null
+          default_rent_amount?: number | null
+          deposit_cap?: number | null
+          auto_monthly_invoices?: boolean | null
+          notification_payment_reminders?: boolean | null
+          notification_incident_alerts?: boolean | null
+          notification_daily_summary?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incidents: {
+        Row: {
+          id: string
+          house_id: string | null
+          resident_id: string | null
+          type: string
+          description: string
+          severity: string
+          status: string
+          reported_by: string | null
+          resolved_at: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          house_id?: string | null
+          resident_id?: string | null
+          type: string
+          description: string
+          severity?: string
+          status?: string
+          reported_by?: string | null
+          resolved_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          house_id?: string | null
+          resident_id?: string | null
+          type?: string
+          description?: string
+          severity?: string
+          status?: string
+          reported_by?: string | null
+          resolved_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          id: string
+          resident_id: string | null
+          resident_name: string | null
+          amount: number
+          due_date: string | null
+          paid_date: string | null
+          status: string
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id?: string | null
+          resident_name?: string | null
+          amount: number
+          due_date?: string | null
+          paid_date?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string | null
+          resident_name?: string | null
+          amount?: number
+          due_date?: string | null
+          paid_date?: string | null
+          status?: string
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resident_documents: {
+        Row: {
+          id: string
+          resident_id: string
+          name: string
+          file_path: string
+          file_size: number | null
+          mime_type: string | null
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          name: string
+          file_path: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          name?: string
+          file_path?: string
+          file_size?: number | null
+          mime_type?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resident_documents_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

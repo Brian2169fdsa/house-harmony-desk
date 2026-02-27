@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { Users, DollarSign, TrendingUp, AlertCircle, Wrench, UserPlus, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
 
 const kpis = [
   {
@@ -34,6 +35,31 @@ const agingBuckets = [
   { label: "90+ days", amount: "$0", count: 0 },
 ];
 
+type ActivityItem = {
+  id: string;
+  type: "incident" | "maintenance" | "intake_lead" | "payment" | "new_resident";
+  title: string;
+  subtitle: string;
+  created_at: string;
+};
+
+function activityIcon(type: ActivityItem["type"]) {
+  switch (type) {
+    case "incident":
+      return { bg: "bg-destructive/10", icon: AlertCircle, color: "text-destructive" };
+    case "maintenance":
+      return { bg: "bg-warning/10", icon: Wrench, color: "text-warning" };
+    case "intake_lead":
+      return { bg: "bg-primary/10", icon: FileText, color: "text-primary" };
+    case "payment":
+      return { bg: "bg-success/10", icon: DollarSign, color: "text-success" };
+    case "new_resident":
+      return { bg: "bg-primary/10", icon: Users, color: "text-primary" };
+    default:
+      return { bg: "bg-muted", icon: UserPlus, color: "text-muted-foreground" };
+  }
+}
+
 export default function Overview() {
   const today = new Date();
   const sevenDaysFromNow = new Date(today);
@@ -44,7 +70,6 @@ export default function Overview() {
     queryFn: async () => {
       const todayStr = today.toISOString().split("T")[0];
       const sevenDaysStr = sevenDaysFromNow.toISOString().split("T")[0];
-      
       const { data, error } = await supabase
         .from("residents")
         .select("*")
@@ -56,29 +81,122 @@ export default function Overview() {
     },
   });
 
-  const moveIns = upcomingMoves?.filter(
-    (r) => r.move_in_date && new Date(r.move_in_date) >= today && new Date(r.move_in_date) <= sevenDaysFromNow
-  ) || [];
-  
-  const moveOuts = upcomingMoves?.filter(
-    (r) => r.move_out_date && new Date(r.move_out_date) >= today && new Date(r.move_out_date) <= sevenDaysFromNow
-  ) || [];
+  // Activity feed: pull from all relevant tables
+  const { data: activityFeed } = useQuery({
+    queryKey: ["activity-feed"],
+    queryFn: async () => {
+      const limit = 5;
+
+      const [incidents, maintenance, leads, payments, residents] = await Promise.all([
+        supabase
+          .from("incidents")
+          .select("id, type, description, severity, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .from("maintenance_requests")
+          .select("id, title, priority, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .from("intake_leads")
+          .select("id, name, referral_source, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .from("payments")
+          .select("id, resident_name, amount, status, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+        supabase
+          .from("residents")
+          .select("id, name, room, created_at")
+          .order("created_at", { ascending: false })
+          .limit(limit),
+      ]);
+
+      const items: ActivityItem[] = [];
+
+      for (const row of incidents.data ?? []) {
+        items.push({
+          id: `incident-${row.id}`,
+          type: "incident",
+          title: `Incident: ${row.type} (${row.severity})`,
+          subtitle: row.description,
+          created_at: row.created_at,
+        });
+      }
+      for (const row of maintenance.data ?? []) {
+        items.push({
+          id: `maint-${row.id}`,
+          type: "maintenance",
+          title: `Maintenance: ${row.title}`,
+          subtitle: `Priority: ${row.priority}`,
+          created_at: row.created_at,
+        });
+      }
+      for (const row of leads.data ?? []) {
+        items.push({
+          id: `lead-${row.id}`,
+          type: "intake_lead",
+          title: `New intake lead: ${row.name}`,
+          subtitle: row.referral_source ? `Via ${row.referral_source}` : "Direct inquiry",
+          created_at: row.created_at,
+        });
+      }
+      for (const row of payments.data ?? []) {
+        items.push({
+          id: `pay-${row.id}`,
+          type: "payment",
+          title: `Payment ${row.status === "paid" ? "received" : row.status}`,
+          subtitle: `${row.resident_name ?? "Resident"} — $${row.amount}`,
+          created_at: row.created_at,
+        });
+      }
+      for (const row of residents.data ?? []) {
+        items.push({
+          id: `res-${row.id}`,
+          type: "new_resident",
+          title: `New resident added: ${row.name}`,
+          subtitle: row.room ? `Assigned to ${row.room}` : "Room not assigned",
+          created_at: row.created_at,
+        });
+      }
+
+      // Sort by most recent
+      return items
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+    },
+  });
+
+  const moveIns =
+    upcomingMoves?.filter(
+      (r) =>
+        r.move_in_date &&
+        new Date(r.move_in_date) >= today &&
+        new Date(r.move_in_date) <= sevenDaysFromNow
+    ) || [];
+
+  const moveOuts =
+    upcomingMoves?.filter(
+      (r) =>
+        r.move_out_date &&
+        new Date(r.move_out_date) >= today &&
+        new Date(r.move_out_date) <= sevenDaysFromNow
+    ) || [];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Overview</h1>
-        <p className="text-muted-foreground">
-          Monitor your facility's key metrics
-        </p>
+        <p className="text-muted-foreground">Monitor your facility's key metrics</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Occupancy
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Occupancy</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">85%</div>
@@ -94,18 +212,14 @@ export default function Overview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{moveIns.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {moveOuts.length} move-outs
-            </p>
+            <p className="text-xs text-muted-foreground">{moveOuts.length} move-outs</p>
           </CardContent>
         </Card>
 
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
-                {kpi.title}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
               <kpi.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -125,10 +239,7 @@ export default function Overview() {
           <CardContent>
             <div className="space-y-4">
               {agingBuckets.map((bucket) => (
-                <div
-                  key={bucket.label}
-                  className="flex items-center justify-between"
-                >
+                <div key={bucket.label} className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium">{bucket.label}</p>
                     <p className="text-xs text-muted-foreground">
@@ -149,44 +260,31 @@ export default function Overview() {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-success/10 p-2">
-                  <DollarSign className="h-4 w-4 text-success" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Payment received</p>
-                  <p className="text-xs text-muted-foreground">
-                    John Doe - $800 rent payment
-                  </p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
-                </div>
+            {!activityFeed || activityFeed.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No recent activity
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {activityFeed.map((item) => {
+                  const { bg, icon: Icon, color } = activityIcon(item.type);
+                  return (
+                    <div key={item.id} className="flex items-start gap-3">
+                      <div className={`rounded-full ${bg} p-2 shrink-0`}>
+                        <Icon className={`h-4 w-4 ${color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-primary/10 p-2">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">New resident added</p>
-                  <p className="text-xs text-muted-foreground">
-                    Jane Smith assigned to Room 3B
-                  </p>
-                  <p className="text-xs text-muted-foreground">5 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-warning/10 p-2">
-                  <AlertCircle className="h-4 w-4 text-warning" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Incident reported</p>
-                  <p className="text-xs text-muted-foreground">
-                    Minor maintenance issue in common area
-                  </p>
-                  <p className="text-xs text-muted-foreground">1 day ago</p>
-                </div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
