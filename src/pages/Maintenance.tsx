@@ -307,8 +307,36 @@ export default function Maintenance() {
     const attachments: Array<{ name: string; path: string; url: string }> =
       Array.isArray(request.attachments) ? request.attachments : [];
 
+    // SLA countdown
+    const sla = slaRules.find((r: any) => r.priority === request.priority);
+    let slaStatus: "ok" | "warning" | "breached" = "ok";
+    let slaLabel = "";
+    if (sla && request.created_at && request.status !== "complete" && request.status !== "canceled") {
+      const hoursElapsed = differenceInHours(new Date(), parseISO(request.created_at));
+      const minsElapsed = differenceInMinutes(new Date(), parseISO(request.created_at));
+      const responseDeadline = sla.response_hours;
+      const resolutionDeadline = sla.resolution_hours;
+      const hoursRemaining = resolutionDeadline - hoursElapsed;
+
+      if (hoursElapsed > resolutionDeadline) {
+        slaStatus = "breached";
+        slaLabel = `SLA BREACHED (${Math.abs(hoursRemaining)}h over)`;
+      } else if (hoursElapsed > responseDeadline) {
+        slaStatus = "warning";
+        slaLabel = `${hoursRemaining}h remaining to resolve`;
+      } else {
+        slaLabel = `${responseDeadline - hoursElapsed}h to respond · ${hoursRemaining}h to resolve`;
+      }
+    }
+
+    // Comments for this request
+    const comments = allComments.filter((c: any) => c.request_id === request.id);
+    // Costs for this request
+    const costs = allCosts.filter((c: any) => c.request_id === request.id);
+    const totalCost = costs.reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0);
+
     return (
-      <Card key={request.id} className="mb-4">
+      <Card key={request.id} className={`mb-4 ${slaStatus === "breached" ? "border-red-400" : slaStatus === "warning" ? "border-yellow-400" : ""}`}>
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -320,18 +348,34 @@ export default function Maintenance() {
                 {request.services?.name}
               </CardDescription>
             </div>
-            <Badge
-              variant={
-                request.priority === "high"
-                  ? "destructive"
-                  : request.priority === "medium"
-                  ? "default"
-                  : "secondary"
-              }
-            >
-              {request.priority}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {totalCost > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  <DollarSign className="h-3 w-3 mr-0.5" />{totalCost.toLocaleString()}
+                </Badge>
+              )}
+              <Badge
+                variant={
+                  request.priority === "high"
+                    ? "destructive"
+                    : request.priority === "medium"
+                    ? "default"
+                    : "secondary"
+                }
+              >
+                {request.priority}
+              </Badge>
+            </div>
           </div>
+          {slaLabel && (
+            <div className={`flex items-center gap-1.5 text-xs mt-1 ${
+              slaStatus === "breached" ? "text-red-600 font-semibold" :
+              slaStatus === "warning" ? "text-yellow-600" : "text-green-600"
+            }`}>
+              {slaStatus === "breached" ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+              {slaLabel}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           {request.vendors && (
@@ -378,6 +422,46 @@ export default function Maintenance() {
               </div>
             </div>
           )}
+
+          {/* Comment thread */}
+          {comments.length > 0 && (
+            <div className="border-t pt-2 space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <MessageSquare className="h-3 w-3" /> Comments ({comments.length})
+              </p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {comments.map((c: any) => (
+                  <div key={c.id} className="text-xs bg-muted rounded px-2 py-1">
+                    <span className="text-muted-foreground">{format(parseISO(c.created_at), "MMM d, h:mm a")}</span>
+                    {" — "}{c.comment}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add a comment..."
+              className="text-xs h-8"
+              value={commentText[request.id] ?? ""}
+              onChange={(e) => setCommentText((prev) => ({ ...prev, [request.id]: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && commentText[request.id]?.trim()) {
+                  addComment.mutate({ requestId: request.id, comment: commentText[request.id].trim() });
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={!commentText[request.id]?.trim()}
+              onClick={() => addComment.mutate({ requestId: request.id, comment: commentText[request.id].trim() })}
+            >
+              <Send className="h-3 w-3" />
+            </Button>
+          </div>
+
           <div className="flex items-center gap-2">
             <Select
               value={request.status}
@@ -612,31 +696,64 @@ export default function Maintenance() {
           )}
         </TabsContent>
         <TabsContent value="vendors" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Trusted Partners</CardTitle>
-              <CardDescription>Vendors with active service agreements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {vendors
-                  ?.filter((v) => v.is_trusted)
-                  .map((vendor) => (
-                    <div key={vendor.id} className="flex items-center justify-between border-b pb-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {vendors?.map((vendor) => {
+              const ratings = vendorRatings.filter((r: any) => r.vendor_id === vendor.id);
+              const avgRating = ratings.length
+                ? (ratings.reduce((s: number, r: any) => s + Number(r.rating ?? 0), 0) / ratings.length).toFixed(1)
+                : null;
+              const vendorCosts = allCosts.filter((c: any) => c.vendor_id === vendor.id);
+              const totalSpend = vendorCosts.reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0);
+              const vendorRequests = maintenanceRequests?.filter((r) => r.vendor_id === vendor.id) ?? [];
+              const completedCount = vendorRequests.filter((r) => r.status === "complete").length;
+              const avgResolution = completedCount
+                ? vendorRequests
+                    .filter((r) => r.status === "complete" && r.completed_at)
+                    .reduce((s, r) => s + differenceInHours(parseISO(r.completed_at!), parseISO(r.created_at)), 0) / completedCount
+                : null;
+
+              return (
+                <Card key={vendor.id} className={vendor.is_trusted ? "border-green-300" : ""}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-base">{vendor.name}</CardTitle>
+                      {vendor.is_trusted && <Badge className="bg-green-100 text-green-800 text-xs">Trusted</Badge>}
+                    </div>
+                    <CardDescription className="text-xs">
+                      {vendor.phone} {vendor.email ? `• ${vendor.email}` : ""}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <div className="font-medium">{vendor.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {vendor.phone} • {vendor.email}
+                        <p className="text-muted-foreground text-xs">Rating</p>
+                        <div className="flex items-center gap-1 font-medium">
+                          <Star className="h-3.5 w-3.5 text-yellow-500 fill-yellow-500" />
+                          {avgRating ?? "N/A"}
+                          <span className="text-xs text-muted-foreground">({ratings.length})</span>
                         </div>
                       </div>
-                      {vendor.discount_pct > 0 && (
-                        <Badge variant="secondary">{vendor.discount_pct}% Discount</Badge>
-                      )}
+                      <div>
+                        <p className="text-muted-foreground text-xs">Total Spend</p>
+                        <p className="font-medium">${totalSpend.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Jobs Done</p>
+                        <p className="font-medium">{completedCount} / {vendorRequests.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Avg Resolution</p>
+                        <p className="font-medium">{avgResolution ? `${Math.round(avgResolution)}h` : "N/A"}</p>
+                      </div>
                     </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
+                    {vendor.discount_pct > 0 && (
+                      <Badge variant="secondary" className="text-xs">{vendor.discount_pct}% Discount</Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
