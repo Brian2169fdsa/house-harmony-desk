@@ -13,19 +13,25 @@ import {
   UserPlus,
   Briefcase,
   Wrench,
+  FlaskConical,
+  HeartHandshake,
+  FileText,
+  ShieldAlert,
+  UserCog,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const baseMenuItems = [
+const coreItems = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
   { title: "Houses", url: "/houses", icon: Home },
   { title: "Residents", url: "/residents", icon: Users },
@@ -35,6 +41,20 @@ const baseMenuItems = [
   { title: "Chores", url: "/chores", icon: ClipboardList },
   { title: "Incidents", url: "/incidents", icon: AlertTriangle },
   { title: "Resources", url: "/resources", icon: BookOpen },
+];
+
+const residentCareItems = [
+  { title: "Drug Tests", url: "/drug-tests", icon: FlaskConical },
+  { title: "Recovery", url: "/recovery", icon: HeartHandshake },
+];
+
+const safetyItems = [
+  { title: "Emergency", url: "/emergency", icon: ShieldAlert },
+  { title: "Documents", url: "/documents", icon: FileText },
+];
+
+const adminItems = [
+  { title: "Staff", url: "/staff", icon: UserCog },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -42,53 +62,73 @@ const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
 const maintenanceItem = { title: "Maintenance", url: "/maintenance", icon: Wrench };
 
+function NavGroup({
+  label,
+  items,
+  open,
+}: {
+  label?: string;
+  items: { title: string; url: string; icon: React.ElementType }[];
+  open: boolean;
+}) {
+  return (
+    <SidebarGroup>
+      {label && open && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to={item.url}
+                  end={item.url === "/"}
+                  className={({ isActive }) =>
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "hover:bg-sidebar-accent/50"
+                  }
+                >
+                  <item.icon className="h-4 w-4" />
+                  {open && <span>{item.title}</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export function AppSidebar() {
   const { open } = useSidebar();
-  
-  const enableIntake = typeof window !== 'undefined' && localStorage.getItem("ENABLE_INTAKE") === "true";
-  const enableCRM = typeof window !== 'undefined' && localStorage.getItem("ENABLE_CRM") === "true";
-  const enableMaintenance = typeof window !== 'undefined' && localStorage.getItem("ENABLE_MAINTENANCE") === "true";
 
-  const menuItems = [
-    ...baseMenuItems.slice(0, 3),
+  const enableIntake = typeof window !== "undefined" && localStorage.getItem("ENABLE_INTAKE") === "true";
+  const enableCRM = typeof window !== "undefined" && localStorage.getItem("ENABLE_CRM") === "true";
+  const enableMaintenance = typeof window !== "undefined" && localStorage.getItem("ENABLE_MAINTENANCE") === "true";
+
+  const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
     ...(enableMaintenance ? [maintenanceItem] : []),
-    ...baseMenuItems.slice(3),
   ];
 
   return (
     <Sidebar>
       <SidebarContent>
         <div className="px-4 py-6">
-          <h1 className="text-xl font-semibold text-sidebar-foreground">
-            SoberOps
-          </h1>
+          <h1 className="text-xl font-semibold text-sidebar-foreground">SoberOps</h1>
         </div>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/"}
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                          : "hover:bg-sidebar-accent/50"
-                      }
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+
+        <NavGroup items={coreItems} open={open} />
+
+        {featureItems.length > 0 && (
+          <NavGroup label="Features" items={featureItems} open={open} />
+        )}
+
+        <NavGroup label="Resident Care" items={residentCareItems} open={open} />
+        <NavGroup label="Safety & Compliance" items={safetyItems} open={open} />
+        <NavGroup label="Administration" items={adminItems} open={open} />
       </SidebarContent>
     </Sidebar>
   );

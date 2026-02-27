@@ -2,16 +2,27 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useUserRole } from "@/contexts/UserRoleContext";
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  regional_manager: "Regional Manager",
+  house_manager: "House Manager",
+  staff: "Staff",
+  investor: "Investor (Read-Only)",
+};
 
 const SETTINGS_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function Settings() {
   const queryClient = useQueryClient();
+  const { profile, role } = useUserRole();
 
   // Feature flags (localStorage-based)
   const [enableIntake, setEnableIntake] = useState(false);
@@ -110,6 +121,33 @@ export default function Settings() {
       </div>
 
       <div className="grid gap-6">
+        {/* Current user account info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground w-20">Name</span>
+              <span className="text-sm font-medium">{profile?.full_name ?? "—"}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground w-20">Role</span>
+              {role ? (
+                <Badge variant="secondary">{ROLE_LABELS[role] ?? role}</Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">Not assigned</span>
+              )}
+            </div>
+            {profile?.hire_date && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20">Hire Date</span>
+                <span className="text-sm">{profile.hire_date}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Facility Information</CardTitle>

@@ -862,6 +862,566 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          id: string
+          user_id: string | null
+          action: string
+          entity_type: string
+          entity_id: string | null
+          old_value: Json | null
+          new_value: Json | null
+          ip_address: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          action: string
+          entity_type: string
+          entity_id?: string | null
+          old_value?: Json | null
+          new_value?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          action?: string
+          entity_type?: string
+          entity_id?: string | null
+          old_value?: Json | null
+          new_value?: Json | null
+          ip_address?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      staff_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          role: string
+          full_name: string
+          phone: string | null
+          hire_date: string | null
+          status: string
+          house_id: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          role?: string
+          full_name?: string
+          phone?: string | null
+          hire_date?: string | null
+          status?: string
+          house_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          role?: string
+          full_name?: string
+          phone?: string | null
+          hire_date?: string | null
+          status?: string
+          house_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_invitations: {
+        Row: {
+          id: string
+          email: string
+          role: string
+          invited_by: string | null
+          token: string
+          expires_at: string
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          role?: string
+          invited_by?: string | null
+          token?: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          role?: string
+          invited_by?: string | null
+          token?: string
+          expires_at?: string
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      drug_tests: {
+        Row: {
+          id: string
+          resident_id: string
+          test_date: string
+          test_type: string
+          result: string
+          administered_by: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          test_date?: string
+          test_type?: string
+          result?: string
+          administered_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          test_date?: string
+          test_type?: string
+          result?: string
+          administered_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drug_tests_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drug_test_schedules: {
+        Row: {
+          id: string
+          resident_id: string
+          frequency: string
+          last_test_date: string | null
+          next_test_date: string | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          frequency?: string
+          last_test_date?: string | null
+          next_test_date?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          frequency?: string
+          last_test_date?: string | null
+          next_test_date?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      meeting_attendance: {
+        Row: {
+          id: string
+          resident_id: string
+          meeting_type: string
+          meeting_date: string
+          meeting_name: string | null
+          verified: boolean
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          meeting_type?: string
+          meeting_date?: string
+          meeting_name?: string | null
+          verified?: boolean
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          meeting_type?: string
+          meeting_date?: string
+          meeting_name?: string | null
+          verified?: boolean
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      court_requirements: {
+        Row: {
+          id: string
+          resident_id: string
+          requirement_type: string
+          frequency: string | null
+          officer_name: string | null
+          officer_phone: string | null
+          officer_email: string | null
+          next_check_in_date: string | null
+          notes: string | null
+          active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          requirement_type: string
+          frequency?: string | null
+          officer_name?: string | null
+          officer_phone?: string | null
+          officer_email?: string | null
+          next_check_in_date?: string | null
+          notes?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          requirement_type?: string
+          frequency?: string | null
+          officer_name?: string | null
+          officer_phone?: string | null
+          officer_email?: string | null
+          next_check_in_date?: string | null
+          notes?: string | null
+          active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      employment_records: {
+        Row: {
+          id: string
+          resident_id: string
+          employer: string
+          position: string | null
+          start_date: string | null
+          end_date: string | null
+          hourly_rate: number | null
+          verified: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          employer: string
+          position?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          hourly_rate?: number | null
+          verified?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          employer?: string
+          position?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          hourly_rate?: number | null
+          verified?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      program_phase_rules: {
+        Row: {
+          id: string
+          phase_number: number
+          phase_name: string
+          min_days_required: number
+          required_meetings_per_week: number
+          required_tests_per_week: number
+          curfew_time: string | null
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          phase_number: number
+          phase_name: string
+          min_days_required?: number
+          required_meetings_per_week?: number
+          required_tests_per_week?: number
+          curfew_time?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          phase_number?: number
+          phase_name?: string
+          min_days_required?: number
+          required_meetings_per_week?: number
+          required_tests_per_week?: number
+          curfew_time?: string | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      document_templates: {
+        Row: {
+          id: string
+          name: string
+          category: string
+          template_content: string
+          variables_json: Json | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          category?: string
+          template_content?: string
+          variables_json?: Json | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          category?: string
+          template_content?: string
+          variables_json?: Json | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      generated_documents: {
+        Row: {
+          id: string
+          template_id: string | null
+          resident_id: string | null
+          title: string
+          filled_content: string
+          created_by: string | null
+          signed_at: string | null
+          signature_data: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          template_id?: string | null
+          resident_id?: string | null
+          title: string
+          filled_content?: string
+          created_by?: string | null
+          signed_at?: string | null
+          signature_data?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string | null
+          resident_id?: string | null
+          title?: string
+          filled_content?: string
+          created_by?: string | null
+          signed_at?: string | null
+          signature_data?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      emergency_contacts: {
+        Row: {
+          id: string
+          resident_id: string
+          contact_name: string
+          relationship: string
+          phone: string
+          email: string | null
+          priority_order: number
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resident_id: string
+          contact_name: string
+          relationship: string
+          phone: string
+          email?: string | null
+          priority_order?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resident_id?: string
+          contact_name?: string
+          relationship?: string
+          phone?: string
+          email?: string | null
+          priority_order?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emergency_protocols: {
+        Row: {
+          id: string
+          protocol_type: string
+          title: string
+          steps_json: Json
+          last_reviewed: string | null
+          reviewed_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          protocol_type: string
+          title: string
+          steps_json?: Json
+          last_reviewed?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          protocol_type?: string
+          title?: string
+          steps_json?: Json
+          last_reviewed?: string | null
+          reviewed_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emergency_supplies: {
+        Row: {
+          id: string
+          house_id: string
+          supply_type: string
+          quantity: number
+          expiration_date: string | null
+          location: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          house_id: string
+          supply_type: string
+          quantity?: number
+          expiration_date?: string | null
+          location?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          house_id?: string
+          supply_type?: string
+          quantity?: number
+          expiration_date?: string | null
+          location?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      emergency_events: {
+        Row: {
+          id: string
+          house_id: string
+          resident_id: string | null
+          event_type: string
+          description: string
+          actions_taken: string | null
+          responders: string[] | null
+          outcome: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          house_id: string
+          resident_id?: string | null
+          event_type: string
+          description: string
+          actions_taken?: string | null
+          responders?: string[] | null
+          outcome?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          house_id?: string
+          resident_id?: string | null
+          event_type?: string
+          description?: string
+          actions_taken?: string | null
+          responders?: string[] | null
+          outcome?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       facility_settings: {
         Row: {
           id: string
