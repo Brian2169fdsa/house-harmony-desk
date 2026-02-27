@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Users, DollarSign, Home, BarChart3,
-  Target, Plus, Loader2, Upload, Award, Briefcase, Heart,
+  Target, Plus, Loader2, Upload, Award, Briefcase, Heart, CreditCard,
 } from "lucide-react";
 import { format, subMonths, startOfMonth, differenceInDays, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -144,6 +144,34 @@ function useLeads() {
       const { data, error } = await supabase
         .from("intake_leads")
         .select("id, status, source, created_at, updated_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function usePayments() {
+  return useQuery({
+    queryKey: ["payments_all_analytics"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, amount, status, payment_date, created_at, resident_id")
+        .order("payment_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useInvoices() {
+  return useQuery({
+    queryKey: ["invoices_all_analytics"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id, amount, status, due_date, paid_date, resident_id, created_at")
+        .order("due_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -846,6 +874,158 @@ function OutcomesTab() {
   );
 }
 
+// ─── Tab 7: Collection Metrics ────────────────────────────────
+function CollectionTab() {
+  const { data: payments = [] } = usePayments();
+  const { data: invoices = [] } = useInvoices();
+
+  const totalInvoices = invoices.length;
+  const paidInvoices = invoices.filter((i: any) => i.status === "paid").length;
+  const overdueInvoices = invoices.filter((i: any) => i.status === "overdue" || (i.status !== "paid" && i.due_date && new Date(i.due_date) < new Date())).length;
+  const collectionRate = totalInvoices > 0 ? (paidInvoices / totalInvoices) * 100 : 0;
+
+  // Average days to collect = avg(paid_date - due_date) for paid invoices
+  const paidWithDates = invoices.filter((i: any) => i.status === "paid" && i.paid_date && i.due_date);
+  const avgDaysToCollect = paidWithDates.length > 0
+    ? paidWithDates.reduce((sum: number, i: any) => {
+        const days = differenceInDays(parseISO(i.paid_date), parseISO(i.due_date));
+        return sum + Math.max(0, days);
+      }, 0) / paidWithDates.length
+    : 0;
+
+  // Bad debt: invoices that are overdue > 60 days and not paid
+  const badDebtInvoices = invoices.filter((i: any) => {
+    if (i.status === "paid") return false;
+    if (!i.due_date) return false;
+    return differenceInDays(new Date(), parseISO(i.due_date)) > 60;
+  });
+  const badDebtAmount = badDebtInvoices.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+
+  // Collection trend by month (last 6 months)
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(startOfMonth(new Date()), 5 - i);
+    return { key: format(d, "yyyy-MM"), label: format(d, "MMM yy") };
+  });
+
+  const collectionTrend = months.map(({ key, label }) => {
+    const monthInvoices = invoices.filter((i: any) => i.due_date?.startsWith(key));
+    const monthPaid = monthInvoices.filter((i: any) => i.status === "paid").length;
+    const rate = monthInvoices.length > 0 ? (monthPaid / monthInvoices.length) * 100 : 0;
+    const totalDue = monthInvoices.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+    const totalCollected = monthInvoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0);
+    return { month: label, rate: Math.round(rate), totalDue: Math.round(totalDue), collected: Math.round(totalCollected) };
+  });
+
+  // Payment method breakdown
+  const totalPaymentAmount = payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+
+  // Aging buckets
+  const now = new Date();
+  const aging = invoices.filter((i: any) => i.status !== "paid" && i.due_date);
+  const current = aging.filter((i: any) => differenceInDays(now, parseISO(i.due_date)) <= 0);
+  const days1to30 = aging.filter((i: any) => { const d = differenceInDays(now, parseISO(i.due_date)); return d > 0 && d <= 30; });
+  const days31to60 = aging.filter((i: any) => { const d = differenceInDays(now, parseISO(i.due_date)); return d > 30 && d <= 60; });
+  const days60plus = aging.filter((i: any) => differenceInDays(now, parseISO(i.due_date)) > 60);
+
+  const agingData = [
+    { bucket: "Current", count: current.length, amount: current.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0) },
+    { bucket: "1-30 Days", count: days1to30.length, amount: days1to30.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0) },
+    { bucket: "31-60 Days", count: days31to60.length, amount: days31to60.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0) },
+    { bucket: "60+ Days", count: days60plus.length, amount: days60plus.reduce((s: number, i: any) => s + Number(i.amount ?? 0), 0) },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard title="Collection Rate" value={fmtPct(collectionRate)} icon={CreditCard} color={collectionRate >= 90 ? "text-green-600" : collectionRate >= 75 ? "text-yellow-600" : "text-red-600"} />
+        <KPICard title="Avg Days to Collect" value={`${Math.round(avgDaysToCollect)} days`} icon={Target} color={avgDaysToCollect <= 5 ? "text-green-600" : avgDaysToCollect <= 15 ? "text-yellow-600" : "text-red-600"} />
+        <KPICard title="Overdue Invoices" value={overdueInvoices.toString()} icon={DollarSign} color={overdueInvoices === 0 ? "text-green-600" : "text-red-600"} />
+        <KPICard title="Bad Debt (60+ days)" value={fmt(badDebtAmount)} icon={TrendingDown} color={badDebtAmount === 0 ? "text-green-600" : "text-red-600"} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Collection Rate Trend</CardTitle>
+            <CardDescription>Monthly payment collection success rate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {collectionTrend.every((d) => d.rate === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No invoice data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={collectionTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip formatter={(v: any) => `${Number(v).toFixed(0)}%`} />
+                  <Area type="monotone" dataKey="rate" stroke="#22c55e" fill="#dcfce7" name="Collection Rate %" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Amount Billed vs Collected</CardTitle>
+            <CardDescription>Monthly comparison of amounts due and received</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={collectionTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                <Legend />
+                <Bar dataKey="totalDue" fill="#94a3b8" name="Billed" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="collected" fill="#22c55e" name="Collected" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Accounts Receivable Aging</CardTitle>
+          <CardDescription>Outstanding invoices grouped by days overdue</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 font-medium text-muted-foreground">Aging Bucket</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">Invoices</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">Amount Outstanding</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agingData.map((row) => (
+                  <tr key={row.bucket} className="border-b last:border-0">
+                    <td className="py-2 font-medium">{row.bucket}</td>
+                    <td className="py-2 text-right">{row.count}</td>
+                    <td className={`py-2 text-right font-medium ${row.bucket === "60+ Days" && row.amount > 0 ? "text-red-600" : ""}`}>
+                      {fmt(row.amount)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t-2">
+                  <td className="py-2 font-bold">Total Outstanding</td>
+                  <td className="py-2 text-right font-bold">{agingData.reduce((s, r) => s + r.count, 0)}</td>
+                  <td className="py-2 text-right font-bold">{fmt(agingData.reduce((s, r) => s + r.amount, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Main page ───────────────────────────────────────────────
 export default function Analytics() {
   return (
@@ -862,13 +1042,14 @@ export default function Analytics() {
       </div>
 
       <Tabs defaultValue="occupancy">
-        <TabsList className="grid grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-7 w-full">
           <TabsTrigger value="occupancy">Occupancy</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="retention">Retention</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="outcomes">Outcomes</TabsTrigger>
+          <TabsTrigger value="collection">Collections</TabsTrigger>
         </TabsList>
         <TabsContent value="occupancy" className="mt-6"><OccupancyTab /></TabsContent>
         <TabsContent value="revenue"   className="mt-6"><RevenueTab /></TabsContent>
@@ -876,6 +1057,7 @@ export default function Analytics() {
         <TabsContent value="retention" className="mt-6"><RetentionTab /></TabsContent>
         <TabsContent value="pipeline"  className="mt-6"><PipelineTab /></TabsContent>
         <TabsContent value="outcomes"  className="mt-6"><OutcomesTab /></TabsContent>
+        <TabsContent value="collection" className="mt-6"><CollectionTab /></TabsContent>
       </Tabs>
     </div>
   );

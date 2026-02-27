@@ -42,6 +42,10 @@ interface ScenarioInputs {
   vacancyRampMonths: number;
   annualRentGrowth: number;
   annualExpenseGrowth: number;
+  purchasePrice: number;
+  downPayment: number;
+  loanInterestRate: number;
+  loanTermYears: number;
 }
 
 const defaultInputs: ScenarioInputs = {
@@ -58,6 +62,10 @@ const defaultInputs: ScenarioInputs = {
   vacancyRampMonths: 3,
   annualRentGrowth: 3,
   annualExpenseGrowth: 2,
+  purchasePrice: 350000,
+  downPayment: 70000,
+  loanInterestRate: 7.5,
+  loanTermYears: 30,
 };
 
 // ─── Core calculation engine ──────────────────────────────────────────────────
@@ -138,7 +146,18 @@ function calculateProjection(inputs: ScenarioInputs) {
   const startupCost = (expenseBreakdown.reduce((s, e) => s + e.amount, 0)) * 6;
   const roi = startupCost > 0 ? (yr1NOI / startupCost) * 100 : 0;
 
-  return { data, breakEvenBeds, breakEvenOccupancy, expenseBreakdown, yr1Revenue, yr1Expenses, yr1NOI, yr2Revenue, yr2Expenses, yr2NOI, dscr, roi, startupCost };
+  // Cash-on-Cash Return = Annual Pre-Tax Cash Flow / Total Cash Invested
+  const totalCashInvested = inputs.downPayment + startupCost;
+  const annualCashFlow = yr1NOI; // After debt service is already included via mortgage
+  const cashOnCash = totalCashInvested > 0 ? (annualCashFlow / totalCashInvested) * 100 : 0;
+
+  // Cap Rate = Annual NOI / Purchase Price
+  const capRate = inputs.purchasePrice > 0 ? ((yr1NOI + annualDebtService) / inputs.purchasePrice) * 100 : 0;
+
+  // Loan amount
+  const loanAmount = inputs.purchasePrice - inputs.downPayment;
+
+  return { data, breakEvenBeds, breakEvenOccupancy, expenseBreakdown, yr1Revenue, yr1Expenses, yr1NOI, yr2Revenue, yr2Expenses, yr2NOI, dscr, roi, startupCost, cashOnCash, capRate, totalCashInvested, loanAmount };
 }
 
 function NumberInput({ label, value, onChange, prefix, suffix, step = 1, min = 0 }: {
@@ -282,6 +301,15 @@ export default function Projections() {
               </div>
 
               <Separator />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Investment & Loan</p>
+              <div className="grid grid-cols-2 gap-3">
+                <NumberInput label="Purchase Price" value={inputs.purchasePrice} onChange={set("purchasePrice")} prefix="$" />
+                <NumberInput label="Down Payment" value={inputs.downPayment} onChange={set("downPayment")} prefix="$" />
+                <NumberInput label="Interest Rate" value={inputs.loanInterestRate} onChange={set("loanInterestRate")} suffix="%" step={0.25} />
+                <NumberInput label="Loan Term (Years)" value={inputs.loanTermYears} onChange={set("loanTermYears")} min={1} />
+              </div>
+
+              <Separator />
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Growth Assumptions</p>
               <div className="grid grid-cols-2 gap-3">
                 <NumberInput label="Annual Rent Growth" value={inputs.annualRentGrowth} onChange={set("annualRentGrowth")} suffix="%" step={0.5} />
@@ -328,11 +356,13 @@ export default function Projections() {
         {/* ── Results panel ──────────────────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-4">
           {/* Summary KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               { label: "Year 1 Revenue", value: fmt(calc.yr1Revenue), color: "text-green-600" },
               { label: "Year 1 NOI", value: fmt(calc.yr1NOI), color: calc.yr1NOI >= 0 ? "text-green-600" : "text-red-600" },
               { label: "DSCR", value: calc.dscr.toFixed(2), color: calc.dscr >= 1.25 ? "text-green-600" : calc.dscr >= 1 ? "text-amber-600" : "text-red-600" },
+              { label: "Cash-on-Cash", value: fmtPct(calc.cashOnCash), color: calc.cashOnCash >= 10 ? "text-green-600" : calc.cashOnCash >= 0 ? "text-amber-600" : "text-red-600" },
+              { label: "Cap Rate", value: fmtPct(calc.capRate), color: calc.capRate >= 8 ? "text-green-600" : calc.capRate >= 5 ? "text-amber-600" : "text-red-600" },
               { label: "Proj. ROI (Y1)", value: fmtPct(calc.roi), color: calc.roi >= 15 ? "text-green-600" : calc.roi >= 0 ? "text-amber-600" : "text-red-600" },
             ].map(({ label, value, color }) => (
               <Card key={label}>
@@ -551,27 +581,91 @@ export default function Projections() {
                 </Card>
 
                 <Card>
-                  <CardHeader><CardTitle>ROI Analysis</CardTitle><CardDescription>Return on initial startup investment</CardDescription></CardHeader>
+                  <CardHeader><CardTitle>Cash-on-Cash Return</CardTitle><CardDescription>Annual cash flow relative to total cash invested</CardDescription></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-center">
-                      <p className={`text-5xl font-bold ${calc.roi >= 15 ? "text-green-600" : calc.roi >= 0 ? "text-amber-600" : "text-red-600"}`}>
-                        {fmtPct(calc.roi)}
+                      <p className={`text-5xl font-bold ${calc.cashOnCash >= 10 ? "text-green-600" : calc.cashOnCash >= 0 ? "text-amber-600" : "text-red-600"}`}>
+                        {fmtPct(calc.cashOnCash)}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">Year 1 ROI on startup capital</p>
+                      <Badge className="mt-2" variant={calc.cashOnCash >= 10 ? "default" : calc.cashOnCash >= 5 ? "secondary" : "destructive"}>
+                        {calc.cashOnCash >= 10 ? "Strong Return" : calc.cashOnCash >= 5 ? "Moderate" : "Below Target"}
+                      </Badge>
                     </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Est. Startup Cost (6 mo. expenses)</span>
+                        <span className="text-muted-foreground">Down Payment</span>
+                        <span>{fmt(inputs.downPayment)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Startup Cost (6 mo.)</span>
                         <span>{fmt(calc.startupCost)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Year 1 NOI</span>
+                        <span className="text-muted-foreground">Total Cash Invested</span>
+                        <span>{fmt(calc.totalCashInvested)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Year 1 Cash Flow (NOI)</span>
                         <span>{fmt(calc.yr1NOI)}</span>
                       </div>
                       <div className="flex justify-between font-medium border-t pt-2">
-                        <span>Year 1 ROI</span>
-                        <span>{fmtPct(calc.roi)}</span>
+                        <span>Cash-on-Cash Return</span>
+                        <span>{fmtPct(calc.cashOnCash)}</span>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader><CardTitle>Cap Rate</CardTitle><CardDescription>Net operating income / purchase price</CardDescription></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-center">
+                      <p className={`text-5xl font-bold ${calc.capRate >= 8 ? "text-green-600" : calc.capRate >= 5 ? "text-amber-600" : "text-red-600"}`}>
+                        {fmtPct(calc.capRate)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Sober living industry avg: 8-12%</p>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Purchase Price</span>
+                        <span>{fmt(inputs.purchasePrice)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Annual NOI (before debt)</span>
+                        <span>{fmt(calc.yr1NOI + inputs.monthlyMortgage * 12)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader><CardTitle>Loan Summary</CardTitle><CardDescription>Financing details</CardDescription></CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Purchase Price</span>
+                      <span>{fmt(inputs.purchasePrice)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Down Payment ({inputs.purchasePrice > 0 ? ((inputs.downPayment / inputs.purchasePrice) * 100).toFixed(0) : 0}%)</span>
+                      <span>{fmt(inputs.downPayment)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Loan Amount</span>
+                      <span>{fmt(calc.loanAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Interest Rate</span>
+                      <span>{fmtPct(inputs.loanInterestRate)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Loan Term</span>
+                      <span>{inputs.loanTermYears} years</span>
+                    </div>
+                    <div className="flex justify-between font-medium border-t pt-2">
+                      <span>Monthly Payment (P&I)</span>
+                      <span>{fmt(inputs.monthlyMortgage)}</span>
                     </div>
                   </CardContent>
                 </Card>
