@@ -24,6 +24,7 @@ import CRMReferrals from "./pages/CRMReferrals";
 import Maintenance from "./pages/Maintenance";
 import StartupWizardList from "./pages/StartupWizardList";
 import StartupWizard from "./pages/StartupWizard";
+import OperatorOnboarding from "./pages/OperatorOnboarding";
 import TrainingHub from "./pages/TrainingHub";
 import CoursesCatalog from "./pages/CoursesCatalog";
 import CourseDetail from "./pages/CourseDetail";
@@ -144,6 +145,7 @@ const App = () => {
               <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/onboarding" element={<ProtectedRoute><MainLayout><OperatorOnboarding /></MainLayout></ProtectedRoute>} />
               <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/training" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingHub /></FeatureGate></MainLayout></ProtectedRoute>} />

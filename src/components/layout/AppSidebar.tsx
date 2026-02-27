@@ -28,6 +28,7 @@ import {
   Award,
   HandshakeIcon,
   Receipt,
+  MapPin,
 } from "lucide-react";
 import {
   Sidebar,
@@ -68,6 +69,8 @@ const adminItems = [
   { title: "Staff", url: "/staff", icon: UserCog },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
+
+const onboardingItem = { title: "Operator Onboarding", url: "/onboarding", icon: MapPin };
 
 const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
@@ -135,6 +138,7 @@ export function AppSidebar() {
   const enableLMS = typeof window !== "undefined" && localStorage.getItem("ENABLE_LMS") === "true";
 
   const featureItems = [
+    onboardingItem,
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
     ...(enableMaintenance ? [maintenanceItem] : []),
