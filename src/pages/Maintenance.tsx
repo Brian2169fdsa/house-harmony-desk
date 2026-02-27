@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { triageRequest } from "@/services/agents/maintenanceTriageAgent";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -212,6 +213,18 @@ export default function Maintenance() {
       toast({ title: "Maintenance request created" });
       setDialogOpen(false);
       resetForm();
+
+      // Fire-and-forget: run AI triage in background
+      if (inserted?.id) {
+        const agentEnabled =
+          typeof window !== "undefined" &&
+          localStorage.getItem("ENABLE_MAINTENANCE_AGENT") === "true";
+        if (agentEnabled) {
+          triageRequest(inserted.id).catch(() => {
+            // triage errors are non-fatal
+          });
+        }
+      }
     } catch (err: any) {
       toast({ title: err.message || "Failed to create request", variant: "destructive" });
     } finally {
