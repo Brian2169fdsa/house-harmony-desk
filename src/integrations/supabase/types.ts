@@ -354,6 +354,164 @@ export type Database = {
         }
         Relationships: []
       }
+      incidents: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          resident_id: string | null
+          resident_name: string | null
+          severity: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          resident_id?: string | null
+          resident_name?: string | null
+          severity?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          resident_id?: string | null
+          resident_name?: string | null
+          severity?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          description: string | null
+          due_date: string
+          house_id: string | null
+          id: string
+          paid_date: string | null
+          resident_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          description?: string | null
+          due_date: string
+          house_id?: string | null
+          id?: string
+          paid_date?: string | null
+          resident_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          house_id?: string | null
+          id?: string
+          paid_date?: string | null
+          resident_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          body: string | null
+          created_at: string
+          house_id: string | null
+          id: string
+          resident_id: string | null
+          response_deadline: string | null
+          serve_method: string | null
+          served_date: string | null
+          status: string
+          subject: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          house_id?: string | null
+          id?: string
+          resident_id?: string | null
+          response_deadline?: string | null
+          serve_method?: string | null
+          served_date?: string | null
+          status?: string
+          subject: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          house_id?: string | null
+          id?: string
+          resident_id?: string | null
+          response_deadline?: string | null
+          serve_method?: string | null
+          served_date?: string | null
+          status?: string
+          subject?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notices_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notices_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intake_leads: {
         Row: {
           created_at: string
@@ -811,47 +969,38 @@ export type Database = {
       }
       payments: {
         Row: {
-          id: string
-          resident_id: string | null
-          resident_name: string | null
-          amount: number
-          due_date: string | null
-          paid_date: string | null
-          status: string
-          notes: string | null
+          amount_cents: number
           created_at: string
-          updated_at: string
+          id: string
+          invoice_id: string | null
+          paid_at: string
+          payment_method: string | null
+          reference_number: string | null
         }
         Insert: {
-          id?: string
-          resident_id?: string | null
-          resident_name?: string | null
-          amount: number
-          due_date?: string | null
-          paid_date?: string | null
-          status?: string
-          notes?: string | null
+          amount_cents: number
           created_at?: string
-          updated_at?: string
+          id?: string
+          invoice_id?: string | null
+          paid_at?: string
+          payment_method?: string | null
+          reference_number?: string | null
         }
         Update: {
-          id?: string
-          resident_id?: string | null
-          resident_name?: string | null
-          amount?: number
-          due_date?: string | null
-          paid_date?: string | null
-          status?: string
-          notes?: string | null
+          amount_cents?: number
           created_at?: string
-          updated_at?: string
+          id?: string
+          invoice_id?: string | null
+          paid_at?: string
+          payment_method?: string | null
+          reference_number?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "payments_resident_id_fkey"
-            columns: ["resident_id"]
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
-            referencedRelation: "residents"
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
