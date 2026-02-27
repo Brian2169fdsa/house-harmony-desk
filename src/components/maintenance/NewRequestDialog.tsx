@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { triageRequest } from "@/services/agents/maintenanceTriageAgent";
 import { z } from "zod";
 import {
   Dialog,
@@ -135,14 +136,19 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from("maintenance_requests").insert({
-        ...data,
-        requested_for_at: data.requested_for_at || null,
-      });
+      const { data: created, error } = await supabase
+        .from("maintenance_requests")
+        .insert({
+          ...data,
+          requested_for_at: data.requested_for_at || null,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
+      return created;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["maintenance-requests"] });
       toast({ title: "Request created successfully" });
       onOpenChange(false);
@@ -156,6 +162,12 @@ export function NewRequestDialog({ open, onOpenChange }: NewRequestDialogProps) 
         requested_for_at: "",
         contact_phone: "",
       });
+
+      // Auto-triage via AI agent if enabled
+      const agentEnabled = localStorage.getItem("ENABLE_MAINTENANCE_AGENT") === "true";
+      if (agentEnabled && data?.id) {
+        triageRequest(data.id).catch(() => {});
+      }
     },
     onError: () => {
       toast({
