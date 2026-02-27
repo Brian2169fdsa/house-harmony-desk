@@ -34,6 +34,10 @@ import InvestorPortal from "./pages/InvestorPortal";
 import Projections from "./pages/Projections";
 import QuickBooks from "./pages/QuickBooks";
 import Staff from "./pages/Staff";
+import StaffScheduling from "./pages/StaffScheduling";
+import InvestorManagement from "./pages/InvestorManagement";
+import MaintenanceBudgets from "./pages/MaintenanceBudgets";
+import PreventiveMaintenance from "./pages/PreventiveMaintenance";
 import DrugTests from "./pages/DrugTests";
 import Recovery from "./pages/Recovery";
 import Documents from "./pages/Documents";
@@ -126,6 +130,7 @@ const App = () => {
               <Route path="/resources" element={<ProtectedRoute><MainLayout><Resources /></MainLayout></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
               <Route path="/staff" element={<ProtectedRoute><MainLayout><Staff /></MainLayout></ProtectedRoute>} />
+              <Route path="/staff/scheduling" element={<ProtectedRoute><MainLayout><StaffScheduling /></MainLayout></ProtectedRoute>} />
               <Route path="/drug-tests" element={<ProtectedRoute><MainLayout><DrugTests /></MainLayout></ProtectedRoute>} />
               <Route path="/recovery" element={<ProtectedRoute><MainLayout><Recovery /></MainLayout></ProtectedRoute>} />
               <Route path="/documents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><Documents /></FeatureGate></MainLayout></ProtectedRoute>} />
@@ -138,6 +143,8 @@ const App = () => {
               <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/maintenance/budgets" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><MaintenanceBudgets /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/maintenance/preventive" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><PreventiveMaintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/training" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingHub /></FeatureGate></MainLayout></ProtectedRoute>} />
@@ -147,6 +154,7 @@ const App = () => {
               <Route path="/training/admin" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingAdmin /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Analytics /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/investor-portal" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorPortal /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/investor-portal/investors" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorManagement /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/quickbooks" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooks /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

@@ -5,470 +5,423 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { DollarSign, TrendingUp, Home, Download, BarChart2, Percent, AlertCircle } from "lucide-react";
-import { format, subMonths, startOfMonth } from "date-fns";
-import { toast } from "sonner";
+import { DollarSign, TrendingUp, Home, Download, Percent, Users, Wrench, Building2 } from "lucide-react";
+import { format, subMonths, startOfMonth, parseISO } from "date-fns";
 
-const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+const fmt  = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 0 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
-function MetricCard({ title, value, sub, icon: Icon, color = "text-primary" }: {
-  title: string; value: string; sub?: string; icon: React.ElementType; color?: string;
+// ─── Portfolio KPI bar ───────────────────────────────────────
+function PortfolioBar({ houses, beds, snapshots, openTickets }: {
+  houses: any[]; beds: any[]; snapshots: any[]; openTickets: number;
 }) {
+  const totalBeds     = beds.length;
+  const occupiedBeds  = beds.filter((b) => b.status === "occupied").length;
+  const occupancy     = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
+  const latestSnap    = [...snapshots].sort((a, b) => b.month > a.month ? 1 : -1)[0];
+  const revenue       = latestSnap ? Number(latestSnap.revenue) : 0;
+  const noi           = latestSnap ? Number(latestSnap.noi ?? (latestSnap.revenue - latestSnap.expenses)) : 0;
+
+  const metrics = [
+    { label: "Properties",  value: houses.length.toString(),    icon: Building2 },
+    { label: "Total Beds",  value: totalBeds.toString(),        icon: Home },
+    { label: "Occupied",    value: occupiedBeds.toString(),     icon: Users },
+    { label: "Occupancy",   value: fmtPct(occupancy),           icon: Percent, color: occupancy >= 90 ? "text-green-600" : occupancy >= 70 ? "text-yellow-600" : "text-red-600" },
+    { label: "Mo. Revenue", value: fmt(revenue),                icon: DollarSign },
+    { label: "Monthly NOI", value: fmt(noi),                    icon: TrendingUp, color: noi >= 0 ? "text-green-600" : "text-red-600" },
+    { label: "Open Tickets",value: openTickets.toString(),      icon: Wrench },
+  ];
+
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
+    <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
+      {metrics.map(({ label, value, icon: Icon, color = "text-foreground" }) => (
+        <Card key={label}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Icon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+            <p className={`text-xl font-bold ${color}`}>{value}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ─── Property summary card ────────────────────────────────────
+function PropertyCard({ house, beds, snapshots, selected, onSelect }: {
+  house: any; beds: any[]; snapshots: any[]; selected: boolean; onSelect: () => void;
+}) {
+  const hBeds     = beds.filter((b) => b.room?.house_id === house.id || b.house_id === house.id);
+  const total     = hBeds.length;
+  const occupied  = hBeds.filter((b) => b.status === "occupied").length;
+  const occ       = total > 0 ? (occupied / total) * 100 : 0;
+  const hSnap     = snapshots.filter((s) => s.house_id === house.id).sort((a, b) => b.month > a.month ? 1 : -1)[0];
+  const revenue   = hSnap ? Number(hSnap.revenue) : 0;
+  const noi       = hSnap ? Number(hSnap.noi ?? (hSnap.revenue - hSnap.expenses)) : 0;
+  const capRate   = revenue > 0 && noi > 0 ? (noi * 12 / (revenue * 12 / 0.08)) * 100 : 0; // simplified
+
+  const borderColor = occ >= 90 ? "border-green-400" : occ >= 70 ? "border-yellow-400" : "border-red-400";
+
+  return (
+    <Card
+      className={`border-2 cursor-pointer transition-all ${borderColor} ${selected ? "ring-2 ring-primary" : ""}`}
+      onClick={onSelect}
+    >
+      <div className="h-28 bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-lg flex items-center justify-center">
+        <Building2 className="h-10 w-10 text-slate-400" />
+      </div>
+      <CardContent className="p-4 space-y-3">
+        <div>
+          <h3 className="font-semibold">{house.name}</h3>
+          <p className="text-xs text-muted-foreground">{house.address ?? "Address not set"}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">{title}</p>
-            <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+            <p className="text-muted-foreground text-xs">Occupancy</p>
+            <p className={`font-semibold ${occ >= 90 ? "text-green-600" : occ >= 70 ? "text-yellow-600" : "text-red-600"}`}>
+              {fmtPct(occ)} ({occupied}/{total})
+            </p>
           </div>
-          <div className="rounded-lg bg-primary/10 p-2">
-            <Icon className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-muted-foreground text-xs">Monthly Revenue</p>
+            <p className="font-semibold">{fmt(revenue)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Monthly NOI</p>
+            <p className={`font-semibold ${noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(noi)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs">Cap Rate (est.)</p>
+            <p className="font-semibold">{fmtPct(capRate)}</p>
           </div>
         </div>
+        <Badge variant={occ >= 90 ? "default" : occ >= 70 ? "secondary" : "destructive"}>
+          {occ >= 90 ? "Performing" : occ >= 70 ? "Moderate" : "Below Target"}
+        </Badge>
       </CardContent>
     </Card>
   );
 }
 
-function getLast12Months() {
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = startOfMonth(subMonths(new Date(), 11 - i));
-    return { date: d, label: format(d, "MMM yy") };
+// ─── P&L summary table ───────────────────────────────────────
+function PLTable({ snapshots, houses }: { snapshots: any[]; houses: any[] }) {
+  const months = Array.from({ length: 3 }, (_, i) => {
+    const d = subMonths(startOfMonth(new Date()), 2 - i);
+    return { key: format(d, "yyyy-MM"), label: format(d, "MMM yyyy") };
   });
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-2 pr-4 font-medium">Property</th>
+            {months.map((m) => (
+              <th key={m.key} className="text-right py-2 px-3 font-medium">{m.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {houses.map((h) => (
+            <tr key={h.id} className="border-b hover:bg-muted/50">
+              <td className="py-2 pr-4 font-medium">{h.name}</td>
+              {months.map((m) => {
+                const snap = snapshots.find((s) => s.house_id === h.id && s.month?.startsWith(m.key));
+                const noi  = snap ? Number(snap.noi ?? (snap.revenue - snap.expenses)) : null;
+                return (
+                  <td key={m.key} className="text-right py-2 px-3">
+                    {snap ? (
+                      <div>
+                        <p>{fmt(Number(snap.revenue))}</p>
+                        <p className={`text-xs ${noi !== null && noi >= 0 ? "text-green-600" : "text-red-600"}`}>
+                          NOI: {noi !== null ? fmt(noi) : "—"}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
+// ─── Main component ──────────────────────────────────────────
 export default function InvestorPortal() {
-  const months = getLast12Months();
-  const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedHouses, setSelectedHouses] = useState<string[]>([]);
+  const [filterHouse, setFilterHouse] = useState("all");
 
-  // Houses
   const { data: houses = [] } = useQuery({
-    queryKey: ["investor_houses"],
+    queryKey: ["houses"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("houses").select("id, name, address");
+      const { data, error } = await supabase.from("houses").select("*");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Beds (for occupancy — status on beds table is source of truth)
   const { data: beds = [] } = useQuery({
-    queryKey: ["investor_beds"],
+    queryKey: ["beds_investor"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("beds")
-        .select("id, status, rooms(id, house_id)");
+      const { data, error } = await supabase.from("beds").select("id, status, room_id, rooms(house_id)");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((b: any) => ({ ...b, house_id: b.rooms?.house_id }));
     },
   });
 
-  // Invoices (financial data — amount_cents, status, house_id)
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["investor_invoices"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("id, amount_cents, status, due_date, paid_date, house_id, resident_id");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  // Expense records
-  const { data: expenses = [] } = useQuery({
-    queryKey: ["investor_expenses"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("expense_records")
-        .select("id, house_id, category, amount, date");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  // Financial snapshots
   const { data: snapshots = [] } = useQuery({
-    queryKey: ["investor_snapshots"],
+    queryKey: ["financial_snapshots_investor"],
     queryFn: async () => {
+      const since = format(subMonths(startOfMonth(new Date()), 11), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("financial_snapshots")
         .select("*")
-        .order("month", { ascending: true });
+        .gte("month", since)
+        .order("month");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // ── Filter helpers ────────────────────────────────────────────────────────
-  const filteredBeds = selectedHouseId === "all"
-    ? beds
-    : beds.filter((b: any) => (b.rooms as any)?.house_id === selectedHouseId);
-
-  const filteredInvoices = selectedHouseId === "all"
-    ? invoices
-    : invoices.filter((i: any) => i.house_id === selectedHouseId);
-
-  const filteredExpenses = selectedHouseId === "all"
-    ? expenses
-    : expenses.filter((e: any) => e.house_id === selectedHouseId);
-
-  // ── KPI calculations ──────────────────────────────────────────────────────
-  const totalBeds = filteredBeds.length;
-  const occupiedBeds = filteredBeds.filter((b: any) => b.status === "occupied").length;
-  const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
-
-  const paidInvoices = filteredInvoices.filter((i: any) => i.status === "paid");
-  const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
-  const totalExpenses = filteredExpenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-  const noi = totalRevenue - totalExpenses;
-  const noiMargin = totalRevenue > 0 ? (noi / totalRevenue) * 100 : 0;
-
-  // Cap rate: annual NOI / property value ($200k per house as placeholder)
-  const filteredHouses = selectedHouseId === "all" ? houses : houses.filter((h: any) => h.id === selectedHouseId);
-  const estimatedPropertyValue = filteredHouses.length * 200000;
-  const capRate = estimatedPropertyValue > 0 ? (noi / estimatedPropertyValue) * 100 : 0;
-  const estimatedEquity = estimatedPropertyValue * 0.2;
-  const cashOnCash = estimatedEquity > 0 ? (noi / estimatedEquity) * 100 : 0;
-
-  // ── P&L trend data (12 months) ────────────────────────────────────────────
-  const plTrendData = months.map(({ label, date }) => {
-    const snap = snapshots.find((s: any) => {
-      if (selectedHouseId !== "all" && s.house_id !== selectedHouseId) return false;
-      const d = new Date(s.month);
-      return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
-    });
-    if (snap) {
-      return {
-        month: label,
-        revenue: Number(snap.revenue),
-        expenses: Number(snap.expenses),
-        noi: Number(snap.noi),
-        occupancy: Number(snap.occupancy_rate ?? 0),
-      };
-    }
-    const monthPaid = filteredInvoices.filter((i: any) => {
-      const d = i.paid_date ? new Date(i.paid_date) : null;
-      return i.status === "paid" && d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
-    });
-    const monthExp = filteredExpenses.filter((e: any) => {
-      const d = e.date ? new Date(e.date) : null;
-      return d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
-    });
-    const rev = monthPaid.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
-    const exp = monthExp.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    return { month: label, revenue: rev, expenses: exp, noi: rev - exp, occupancy: Math.round(occupancyRate) };
+  const { data: maintenanceOpen = [] } = useQuery({
+    queryKey: ["maintenance_open"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("maintenance_requests")
+        .select("id, house_id, status, created_at, title, priority")
+        .in("status", ["open", "in_progress"]);
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
-  // ── House-level P&L ───────────────────────────────────────────────────────
-  const housePnL = houses.map((h: any) => {
-    const hBeds = beds.filter((b: any) => (b.rooms as any)?.house_id === h.id);
-    const hInvoices = invoices.filter((i: any) => i.house_id === h.id && i.status === "paid");
-    const hExp = expenses.filter((e: any) => e.house_id === h.id);
-    const hRev = hInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
-    const hExpTotal = hExp.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    const hNoi = hRev - hExpTotal;
-    const hOccupied = hBeds.filter((b: any) => b.status === "occupied").length;
-    const hOcc = hBeds.length > 0 ? Math.round((hOccupied / hBeds.length) * 100) : 0;
-    const hCapRate = 200000 > 0 ? (hNoi / 200000) * 100 : 0;
-    return { ...h, revenue: hRev, expenses: hExpTotal, noi: hNoi, occupancy: hOcc, capRate: hCapRate, occupiedBeds: hOccupied, totalBeds: hBeds.length };
+  // Revenue trend
+  const months12 = Array.from({ length: 12 }, (_, i) => {
+    const d = subMonths(startOfMonth(new Date()), 11 - i);
+    return { key: format(d, "yyyy-MM"), label: format(d, "MMM yy") };
   });
 
-  const handleDownloadReport = () => {
-    toast.info("PDF generation requires a library like jsPDF. In production this triggers a server-side PDF render.");
-    window.print();
+  const revenueTrend = months12.map(({ key, label }) => {
+    const monthSnaps = snapshots.filter((s: any) => s.month?.startsWith(key));
+    return {
+      month: label,
+      revenue:  monthSnaps.reduce((s: number, r: any) => s + Number(r.revenue), 0),
+      expenses: monthSnaps.reduce((s: number, r: any) => s + Number(r.expenses), 0),
+      noi:      monthSnaps.reduce((s: number, r: any) => s + Number(r.noi ?? (r.revenue - r.expenses)), 0),
+    };
+  });
+
+  const handleToggleHouse = (id: string) => {
+    setSelectedHouses((prev) =>
+      prev.includes(id) ? prev.filter((h) => h !== id) : prev.length < 3 ? [...prev, id] : prev
+    );
   };
 
-  const allCollectionRate = invoices.length > 0
-    ? Math.round((invoices.filter((i: any) => i.status === "paid").length / invoices.length) * 100)
-    : 0;
+  const handleDownload = () => {
+    const rows = [
+      ["Property", "Month", "Revenue", "Expenses", "NOI", "Occupancy %"],
+      ...snapshots.map((s: any) => {
+        const house = houses.find((h: any) => h.id === s.house_id);
+        return [
+          house?.name ?? s.house_id,
+          s.month,
+          s.revenue,
+          s.expenses,
+          s.noi ?? (Number(s.revenue) - Number(s.expenses)),
+          s.occupancy_rate ?? "",
+        ];
+      }),
+    ];
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `portfolio-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Investor Portal</h1>
-          <p className="text-muted-foreground">Property P&L, NOI tracking, cap rates & investment returns</p>
+          <h1 className="text-3xl font-bold">Investor Portal</h1>
+          <p className="text-muted-foreground">Portfolio performance at a glance — read-only view</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedHouseId} onValueChange={setSelectedHouseId}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="All Properties" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Properties</SelectItem>
-              {houses.map((h: any) => (
-                <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={handleDownloadReport}>
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCompareMode(!compareMode)}>
+            {compareMode ? "Exit Compare" : "Compare Houses"}
+          </Button>
+          <Button onClick={handleDownload}>
+            <Download className="h-4 w-4 mr-2" />Download Report
           </Button>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Total Revenue" value={fmt(totalRevenue)} sub="All collected" icon={DollarSign} color="text-green-600" />
-        <MetricCard title="Net Operating Income" value={fmt(noi)} sub={`${fmtPct(noiMargin)} NOI margin`} icon={TrendingUp} color={noi >= 0 ? "text-green-600" : "text-red-600"} />
-        <MetricCard title="Cap Rate" value={fmtPct(capRate)} sub="NOI / est. property value" icon={Percent} />
-        <MetricCard title="Cash-on-Cash Return" value={fmtPct(cashOnCash)} sub="NOI / est. equity (20% down)" icon={BarChart2} />
+      {/* Portfolio KPI bar */}
+      <PortfolioBar houses={houses} beds={beds} snapshots={snapshots} openTickets={maintenanceOpen.length} />
+
+      {/* Property cards */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">
+          {compareMode ? "Select up to 3 properties to compare" : "Properties"}
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {houses.map((h: any) => (
+            <PropertyCard
+              key={h.id}
+              house={h}
+              beds={beds.filter((b: any) => b.house_id === h.id)}
+              snapshots={snapshots}
+              selected={selectedHouses.includes(h.id)}
+              onSelect={() => compareMode && handleToggleHouse(h.id)}
+            />
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Occupancy Rate" value={fmtPct(occupancyRate)} sub={`${occupiedBeds} / ${totalBeds} beds`} icon={Home} />
-        <MetricCard title="Total Expenses" value={fmt(totalExpenses)} sub="Operating costs" icon={DollarSign} color="text-red-600" />
-        <MetricCard title="Properties" value={String(filteredHouses.length)} sub={`${totalBeds} total beds`} icon={Home} />
-        <MetricCard title="Revenue per Bed" value={occupiedBeds > 0 ? fmt(Math.round(totalRevenue / occupiedBeds)) : "—"} sub="Per occupied bed" icon={DollarSign} />
-      </div>
 
-      <Tabs defaultValue="pl">
-        <TabsList>
-          <TabsTrigger value="pl">P&L Summary</TabsTrigger>
-          <TabsTrigger value="noi">NOI Trend</TabsTrigger>
-          <TabsTrigger value="properties">By Property</TabsTrigger>
-          <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
-        </TabsList>
-
-        {/* P&L Summary */}
-        <TabsContent value="pl" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue & Expense Trend (12 months)</CardTitle>
-              <CardDescription>Monthly P&L for {selectedHouseId === "all" ? "all properties" : houses.find((h: any) => h.id === selectedHouseId)?.name}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={plTrendData}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, ""]} />
-                  <Legend />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#22c55e" fill="url(#colorRev)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" fill="url(#colorExp)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>P&L Summary Table</CardTitle></CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 font-medium text-muted-foreground">Month</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">Revenue</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">Expenses</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">NOI</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">Occupancy</th>
+      {/* Side-by-side comparison table */}
+      {compareMode && selectedHouses.length > 1 && (
+        <Card>
+          <CardHeader><CardTitle>House Comparison</CardTitle></CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4">Metric</th>
+                    {selectedHouses.map((id) => {
+                      const h = houses.find((h: any) => h.id === id);
+                      return <th key={id} className="text-center py-2 px-4">{h?.name ?? id}</th>;
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {["Beds", "Occupancy", "Last Mo. Revenue", "Last Mo. NOI", "Open Tickets"].map((metric) => (
+                    <tr key={metric} className="border-b">
+                      <td className="py-2 pr-4 text-muted-foreground">{metric}</td>
+                      {selectedHouses.map((id) => {
+                        const hBeds   = beds.filter((b: any) => b.house_id === id);
+                        const snap    = snapshots.filter((s: any) => s.house_id === id).slice(-1)[0];
+                        const occ     = hBeds.length > 0 ? (hBeds.filter((b: any) => b.status === "occupied").length / hBeds.length) * 100 : 0;
+                        const tickets = maintenanceOpen.filter((t: any) => t.house_id === id).length;
+                        let val = "—";
+                        if (metric === "Beds") val = hBeds.length.toString();
+                        if (metric === "Occupancy") val = fmtPct(occ);
+                        if (metric === "Last Mo. Revenue") val = snap ? fmt(Number(snap.revenue)) : "—";
+                        if (metric === "Last Mo. NOI") val = snap ? fmt(Number(snap.noi ?? (snap.revenue - snap.expenses))) : "—";
+                        if (metric === "Open Tickets") val = tickets.toString();
+                        return <td key={id} className="text-center py-2 px-4 font-medium">{val}</td>;
+                      })}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {plTrendData.map((row) => (
-                      <tr key={row.month} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="py-2">{row.month}</td>
-                        <td className="py-2 text-right text-green-600">{fmt(row.revenue)}</td>
-                        <td className="py-2 text-right text-red-600">{fmt(row.expenses)}</td>
-                        <td className={`py-2 text-right font-medium ${row.noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(row.noi)}</td>
-                        <td className="py-2 text-right">{row.occupancy}%</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-muted/50 font-semibold">
-                      <td className="py-2">Total</td>
-                      <td className="py-2 text-right text-green-600">{fmt(plTrendData.reduce((s, r) => s + r.revenue, 0))}</td>
-                      <td className="py-2 text-right text-red-600">{fmt(plTrendData.reduce((s, r) => s + r.expenses, 0))}</td>
-                      <td className={`py-2 text-right ${noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(noi)}</td>
-                      <td className="py-2 text-right">{fmtPct(occupancyRate)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* NOI Trend */}
-        <TabsContent value="noi" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>NOI & Occupancy Trend</CardTitle>
-              <CardDescription>Net Operating Income month-over-month with occupancy overlay</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={plTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="noi" name="NOI ($)" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} />
-                  <Line yAxisId="right" type="monotone" dataKey="occupancy" name="Occupancy (%)" stroke="#22c55e" strokeWidth={2} dot={false} strokeDasharray="5 5" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* By Property */}
-        <TabsContent value="properties" className="space-y-4">
-          {housePnL.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                <p>No properties found.</p>
-              </CardContent>
-            </Card>
+      {/* P&L Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>P&amp;L Summary — Last 3 Months</CardTitle>
+          <CardDescription>Revenue and NOI by property and month</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {snapshots.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No financial snapshots yet. Run monthly snapshots to populate this table.</p>
           ) : (
-            housePnL.map((h: any) => (
-              <Card key={h.id}>
-                <CardContent className="p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{h.name}</h3>
-                        <Badge variant={h.occupancy >= 80 ? "default" : h.occupancy >= 60 ? "secondary" : "destructive"}>
-                          {h.occupancy}% occupied
-                        </Badge>
-                      </div>
-                      {h.address && <p className="text-xs text-muted-foreground">{h.address}</p>}
-                      <p className="text-xs text-muted-foreground mt-0.5">{h.occupiedBeds} / {h.totalBeds} beds occupied</p>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 text-center">
-                      <div><p className="text-xs text-muted-foreground">Revenue</p><p className="font-semibold text-green-600">{fmt(h.revenue)}</p></div>
-                      <div><p className="text-xs text-muted-foreground">Expenses</p><p className="font-semibold text-red-600">{fmt(h.expenses)}</p></div>
-                      <div><p className="text-xs text-muted-foreground">NOI</p><p className={`font-semibold ${h.noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(h.noi)}</p></div>
-                      <div><p className="text-xs text-muted-foreground">Cap Rate</p><p className="font-semibold text-primary">{fmtPct(h.capRate)}</p></div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+            <PLTable snapshots={snapshots} houses={houses} />
           )}
+        </CardContent>
+      </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Portfolio Revenue Comparison</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={housePnL}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, ""]} />
-                  <Legend />
-                  <Bar dataKey="revenue" name="Revenue" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="noi" name="NOI" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {/* Revenue & NOI trend chart */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle>Revenue Trend — 12 Months</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={revenueTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                <Area type="monotone" dataKey="revenue" stroke="#6366f1" fill="#e0e7ff" name="Revenue" />
+                <Area type="monotone" dataKey="noi" stroke="#22c55e" fill="#dcfce7" name="NOI" />
+                <Legend />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        {/* Benchmarks */}
-        <TabsContent value="benchmarks" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Portfolio vs Industry Benchmarks</CardTitle>
-              <CardDescription>How your portfolio compares to typical sober living operations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { label: "Occupancy Rate", yours: occupancyRate, benchmark: 85, unit: "%" },
-                  { label: "NOI Margin", yours: noiMargin, benchmark: 40, unit: "%" },
-                  { label: "Cap Rate", yours: capRate, benchmark: 8, unit: "%" },
-                  { label: "Collection Rate", yours: allCollectionRate, benchmark: 95, unit: "%" },
-                ].map(({ label, yours, benchmark, unit }) => (
-                  <div key={label} className="space-y-1.5">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium">{label}</span>
-                      <div className="flex gap-4 text-xs text-muted-foreground">
-                        <span className={yours >= benchmark ? "text-green-600" : "text-amber-600"}>
-                          You: {yours.toFixed(1)}{unit}
-                        </span>
-                        <span>Target: {benchmark}{unit}</span>
-                      </div>
-                    </div>
-                    <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-                      <div className="absolute h-full bg-primary/20 rounded-full" style={{ width: `${Math.min(benchmark, 100)}%` }} />
-                      <div
-                        className={`absolute h-full rounded-full transition-all ${yours >= benchmark ? "bg-green-500" : "bg-amber-500"}`}
-                        style={{ width: `${Math.min(yours, 100)}%` }}
-                      />
-                    </div>
+        <Card>
+          <CardHeader><CardTitle>Occupancy Trend — 12 Months</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={months12.map(({ key, label }) => {
+                const snap = snapshots.filter((s: any) => s.month?.startsWith(key));
+                const totalB = snap.reduce((s: number, r: any) => s + (r.total_beds ?? 0), 0);
+                const occB   = snap.reduce((s: number, r: any) => s + (r.occupied_beds ?? 0), 0);
+                return {
+                  month: label,
+                  occupancy: totalB > 0 ? Math.round((occB / totalB) * 100) : null,
+                };
+              })}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                <Tooltip formatter={(v: any) => `${v}%`} />
+                <Line type="monotone" dataKey="occupancy" stroke="#6366f1" strokeWidth={2} connectNulls name="Occupancy %" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Open maintenance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Open Maintenance Tickets</CardTitle>
+          <CardDescription>Property care history — {maintenanceOpen.length} tickets currently open</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {maintenanceOpen.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No open maintenance tickets.</p>
+          ) : (
+            <div className="divide-y max-h-64 overflow-y-auto">
+              {maintenanceOpen.slice(0, 20).map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium">{t.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {houses.find((h: any) => h.id === t.house_id)?.name ?? "Unknown"} · {format(parseISO(t.created_at), "MMM d, yyyy")}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader><CardTitle>Investment Return Summary</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: "Gross Revenue", value: fmt(totalRevenue) },
-                  { label: "Operating Expenses", value: `(${fmt(totalExpenses)})` },
-                  { label: "Net Operating Income", value: fmt(noi), bold: true },
-                  { label: "Est. Property Value", value: fmt(estimatedPropertyValue) },
-                  { label: "Cap Rate", value: fmtPct(capRate) },
-                  { label: "Est. Equity (20% down)", value: fmt(estimatedEquity) },
-                  { label: "Cash-on-Cash Return", value: fmtPct(cashOnCash), bold: true },
-                ].map(({ label, value, bold }) => (
-                  <div key={label} className={`flex justify-between text-sm ${bold ? "font-semibold border-t pt-2" : ""}`}>
-                    <span className={bold ? "" : "text-muted-foreground"}>{label}</span>
-                    <span className={value.startsWith("(") ? "text-red-600" : ""}>{value}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Key Notes</CardTitle></CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Cap rate uses an estimated property value of $200,000 per house. Replace with actual appraisal values for accuracy.</p>
-                <p>• Revenue reflects invoices marked "paid" in SoberOps.</p>
-                <p>• Expense records must be entered in the Analytics → Expenses section.</p>
-                <p>• Connect QuickBooks in Settings for real-time P&L pulled from your accounting system.</p>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                  <Badge variant={t.priority === "emergency" ? "destructive" : t.priority === "high" ? "secondary" : "outline"}>
+                    {t.priority}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1819,6 +1819,185 @@ export type Database = {
           },
         ]
       }
+      agent_configurations: {
+        Row: {
+          id: string
+          agent_type: string
+          display_name: string
+          description: string | null
+          enabled: boolean
+          config_json: Json
+          schedule_cron: string | null
+          last_run_at: string | null
+          next_run_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          agent_type: string
+          display_name: string
+          description?: string | null
+          enabled?: boolean
+          config_json?: Json
+          schedule_cron?: string | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_type?: string
+          display_name?: string
+          description?: string | null
+          enabled?: boolean
+          config_json?: Json
+          schedule_cron?: string | null
+          last_run_at?: string | null
+          next_run_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_actions_log: {
+        Row: {
+          id: string
+          agent_type: string
+          action_type: string
+          entity_type: string | null
+          entity_id: string | null
+          input_json: Json | null
+          output_json: Json | null
+          status: string
+          approved_by: string | null
+          approved_at: string | null
+          error_message: string | null
+          tokens_used: number | null
+          duration_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          agent_type: string
+          action_type: string
+          entity_type?: string | null
+          entity_id?: string | null
+          input_json?: Json | null
+          output_json?: Json | null
+          status?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          error_message?: string | null
+          tokens_used?: number | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          agent_type?: string
+          action_type?: string
+          entity_type?: string | null
+          entity_id?: string | null
+          input_json?: Json | null
+          output_json?: Json | null
+          status?: string
+          approved_by?: string | null
+          approved_at?: string | null
+          error_message?: string | null
+          tokens_used?: number | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      agent_conversations: {
+        Row: {
+          id: string
+          user_id: string | null
+          agent_type: string
+          title: string | null
+          messages_json: Json
+          context_json: Json | null
+          is_archived: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          agent_type?: string
+          title?: string | null
+          messages_json?: Json
+          context_json?: Json | null
+          is_archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          agent_type?: string
+          title?: string | null
+          messages_json?: Json
+          context_json?: Json | null
+          is_archived?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_screening_results: {
+        Row: {
+          id: string
+          lead_id: string | null
+          fit_score: number | null
+          screening_answers_json: Json | null
+          flags: string[] | null
+          agent_recommendation: string | null
+          recommendation_reason: string | null
+          operator_override: string | null
+          override_by: string | null
+          override_at: string | null
+          screened_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id?: string | null
+          fit_score?: number | null
+          screening_answers_json?: Json | null
+          flags?: string[] | null
+          agent_recommendation?: string | null
+          recommendation_reason?: string | null
+          operator_override?: string | null
+          override_by?: string | null
+          override_at?: string | null
+          screened_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string | null
+          fit_score?: number | null
+          screening_answers_json?: Json | null
+          flags?: string[] | null
+          agent_recommendation?: string | null
+          recommendation_reason?: string | null
+          operator_override?: string | null
+          override_by?: string | null
+          override_at?: string | null
+          screened_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_screening_results_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "intake_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

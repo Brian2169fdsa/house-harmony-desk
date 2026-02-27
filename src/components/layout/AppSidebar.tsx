@@ -25,6 +25,10 @@ import {
   Rocket,
   ClipboardCheck,
   GraduationCap,
+  CalendarDays,
+  WrenchIcon,
+  ShieldCheck,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,15 +65,19 @@ const safetyItems = [
 
 const adminItems = [
   { title: "Staff", url: "/staff", icon: UserCog },
+  { title: "Scheduling", url: "/staff/scheduling", icon: CalendarDays },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 const intakeItem = { title: "Intake", url: "/intake", icon: UserPlus };
 const crmItem = { title: "CRM", url: "/crm", icon: Briefcase };
 const maintenanceItem = { title: "Maintenance", url: "/maintenance", icon: Wrench };
+const maintenanceBudgetsItem = { title: "Maint. Budgets", url: "/maintenance/budgets", icon: WrenchIcon };
+const preventiveItem = { title: "Preventive PM", url: "/maintenance/preventive", icon: ShieldCheck };
 const analyticsItem = { title: "Analytics", url: "/analytics", icon: BarChart2 };
 const projectionsItem = { title: "Projections", url: "/projections", icon: Calculator };
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
+const investorMgmtItem = { title: "Investors", url: "/investor-portal/investors", icon: UserCheck };
 const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
 const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
 const lmsItem = { title: "Training", url: "/training", icon: GraduationCap };
@@ -131,7 +139,7 @@ export function AppSidebar() {
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
-    ...(enableMaintenance ? [maintenanceItem] : []),
+    ...(enableMaintenance ? [maintenanceItem, maintenanceBudgetsItem, preventiveItem] : []),
     ...(enableStartupWizard ? [startupWizardItem] : []),
     ...(enableChecklists ? [checklistsItem] : []),
     ...(enableDocumentTemplates ? [documentTemplatesItem] : []),
@@ -140,7 +148,7 @@ export function AppSidebar() {
 
   const analyticsItems = [
     ...(enableAnalytics ? [analyticsItem, projectionsItem] : []),
-    ...(enableInvestorPortal ? [investorPortalItem] : []),
+    ...(enableInvestorPortal ? [investorPortalItem, investorMgmtItem] : []),
     ...(enableQuickBooks ? [quickBooksItem] : []),
   ];
 
