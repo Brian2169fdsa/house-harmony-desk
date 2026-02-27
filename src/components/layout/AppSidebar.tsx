@@ -25,6 +25,7 @@ import {
   Rocket,
   ClipboardCheck,
   GraduationCap,
+  Award,
 } from "lucide-react";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const residentCareItems = [
 
 const safetyItems = [
   { title: "Emergency", url: "/emergency", icon: ShieldAlert },
+  { title: "Accreditation", url: "/accreditation", icon: Award },
 ];
 
 const adminItems = [
