@@ -29,6 +29,13 @@ import {
   WrenchIcon,
   ShieldCheck,
   UserCheck,
+  Bot,
+  HeartPulse,
+  Megaphone,
+  RefreshCw,
+  BedDouble,
+  FileBarChart,
+  ScrollText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -66,6 +73,7 @@ const safetyItems = [
 const adminItems = [
   { title: "Staff", url: "/staff", icon: UserCog },
   { title: "Scheduling", url: "/staff/scheduling", icon: CalendarDays },
+  { title: "Audit Log", url: "/audit-log", icon: ScrollText },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -78,11 +86,20 @@ const analyticsItem = { title: "Analytics", url: "/analytics", icon: BarChart2 }
 const projectionsItem = { title: "Projections", url: "/projections", icon: Calculator };
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
 const investorMgmtItem = { title: "Investors", url: "/investor-portal/investors", icon: UserCheck };
-const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
+const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Calculator };
 const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
 const lmsItem = { title: "Training", url: "/training", icon: GraduationCap };
 const checklistsItem = { title: "Checklists", url: "/checklists", icon: ClipboardCheck };
 const documentTemplatesItem = { title: "Documents", url: "/documents", icon: FileText };
+const alumniItem = { title: "Alumni Network", url: "/alumni", icon: HeartPulse };
+const agentHubItem = { title: "AI Agents", url: "/agents", icon: Bot };
+const complianceItem = { title: "Compliance", url: "/compliance", icon: ShieldCheck };
+const marketingItem = { title: "Marketing", url: "/analytics/marketing", icon: Megaphone };
+const qbSyncItem = { title: "QB Sync", url: "/quickbooks/sync", icon: RefreshCw };
+const occupancyItem = { title: "Occupancy", url: "/occupancy", icon: BedDouble };
+const reportsItem = { title: "Reports", url: "/reports", icon: FileBarChart };
+const communicationsItem = { title: "Communications", url: "/communications", icon: MessageSquare };
+const auditLogItem = { title: "Audit Log", url: "/audit-log", icon: ScrollText };
 
 function NavGroup({
   label,
@@ -135,6 +152,11 @@ export function AppSidebar() {
   const enableChecklists = typeof window !== "undefined" && localStorage.getItem("ENABLE_CHECKLISTS") === "true";
   const enableDocumentTemplates = typeof window !== "undefined" && localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true";
   const enableLMS = typeof window !== "undefined" && localStorage.getItem("ENABLE_LMS") === "true";
+  const enableAlumni = typeof window !== "undefined" && localStorage.getItem("ENABLE_ALUMNI") === "true";
+  const enableAIAgents = typeof window !== "undefined" && localStorage.getItem("ENABLE_AI_AGENTS") === "true";
+  const enableOccupancy = typeof window !== "undefined" && localStorage.getItem("ENABLE_OCCUPANCY_OPTIMIZER") === "true";
+  const enableReports = typeof window !== "undefined" && localStorage.getItem("ENABLE_REPORTS") === "true";
+  const enableCommunications = typeof window !== "undefined" && localStorage.getItem("ENABLE_COMMUNICATIONS") === "true";
 
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
@@ -144,12 +166,20 @@ export function AppSidebar() {
     ...(enableChecklists ? [checklistsItem] : []),
     ...(enableDocumentTemplates ? [documentTemplatesItem] : []),
     ...(enableLMS ? [lmsItem] : []),
+    ...(enableAlumni ? [alumniItem] : []),
+    ...(enableCommunications ? [communicationsItem] : []),
   ];
 
   const analyticsItems = [
     ...(enableAnalytics ? [analyticsItem, projectionsItem] : []),
     ...(enableInvestorPortal ? [investorPortalItem, investorMgmtItem] : []),
     ...(enableQuickBooks ? [quickBooksItem] : []),
+    ...(enableOccupancy ? [occupancyItem] : []),
+    ...(enableReports ? [reportsItem] : []),
+  ];
+
+  const aiItems = [
+    ...(enableAIAgents ? [agentHubItem, complianceItem] : []),
   ];
 
   return (
@@ -171,6 +201,11 @@ export function AppSidebar() {
 
         <NavGroup label="Resident Care" items={residentCareItems} open={open} />
         <NavGroup label="Safety & Compliance" items={safetyItems} open={open} />
+
+        {aiItems.length > 0 && (
+          <NavGroup label="AI & Automation" items={aiItems} open={open} />
+        )}
+
         <NavGroup label="Administration" items={adminItems} open={open} />
       </SidebarContent>
     </Sidebar>

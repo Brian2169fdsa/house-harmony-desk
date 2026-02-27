@@ -12,6 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import OccupancyAlerts from "@/components/OccupancyAlerts";
 
 type ActivityItem = {
   id: string;
@@ -416,6 +417,9 @@ export default function Overview() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Occupancy Alerts */}
+      <OccupancyAlerts />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

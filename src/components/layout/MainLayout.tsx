@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -164,6 +165,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                   </div>
                 )}
               </div>
+            </div>
+            <div className="ml-auto">
+              <NotificationCenter />
             </div>
           </header>
           <main className="flex-1 p-6">{children}</main>
