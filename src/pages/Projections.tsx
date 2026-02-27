@@ -13,8 +13,6 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   ReferenceLine,
   XAxis,
   YAxis,
@@ -23,7 +21,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Calculator, TrendingUp, Save, Trash2, Plus, AlertCircle } from "lucide-react";
+import { Calculator, TrendingUp, Save, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;

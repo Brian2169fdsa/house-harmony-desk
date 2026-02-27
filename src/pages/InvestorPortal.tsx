@@ -24,7 +24,6 @@ import { DollarSign, TrendingUp, Home, Download, BarChart2, Percent, AlertCircle
 import { format, subMonths, startOfMonth } from "date-fns";
 import { toast } from "sonner";
 
-// ─── Helper: format currency ──────────────────────────────────────────────────
 const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
@@ -59,40 +58,42 @@ function getLast12Months() {
 export default function InvestorPortal() {
   const months = getLast12Months();
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [reportPeriod, setReportPeriod] = useState<"monthly" | "quarterly" | "annual">("monthly");
 
-  // ─── Data fetching ───────────────────────────────────────────────────────
+  // Houses
   const { data: houses = [] } = useQuery({
     queryKey: ["investor_houses"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("houses").select("id, name, total_beds, address");
+      const { data, error } = await supabase.from("houses").select("id, name, address");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  const { data: residents = [] } = useQuery({
-    queryKey: ["investor_residents"],
+  // Beds (for occupancy — status on beds table is source of truth)
+  const { data: beds = [] } = useQuery({
+    queryKey: ["investor_beds"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("residents")
-        .select("id, house_id, status, move_in_date, move_out_date");
+        .from("beds")
+        .select("id, status, rooms(id, house_id)");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  const { data: payments = [] } = useQuery({
-    queryKey: ["investor_payments"],
+  // Invoices (financial data — amount_cents, status, house_id)
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["investor_invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("payments")
-        .select("id, resident_id, amount, status, payment_date, due_date");
+        .from("invoices")
+        .select("id, amount_cents, status, due_date, paid_date, house_id, resident_id");
       if (error) throw error;
       return data ?? [];
     },
   });
 
+  // Expense records
   const { data: expenses = [] } = useQuery({
     queryKey: ["investor_expenses"],
     queryFn: async () => {
@@ -104,6 +105,7 @@ export default function InvestorPortal() {
     },
   });
 
+  // Financial snapshots
   const { data: snapshots = [] } = useQuery({
     queryKey: ["investor_snapshots"],
     queryFn: async () => {
@@ -116,47 +118,44 @@ export default function InvestorPortal() {
     },
   });
 
-  // ─── Filter by selected house ────────────────────────────────────────────
-  const filteredHouses = selectedHouseId === "all" ? houses : houses.filter((h: any) => h.id === selectedHouseId);
-  const filteredResidents = selectedHouseId === "all"
-    ? residents
-    : residents.filter((r: any) => r.house_id === selectedHouseId);
-  const filteredPayments = payments.filter((p: any) => {
-    const res = residents.find((r: any) => r.id === p.resident_id);
-    return selectedHouseId === "all" || res?.house_id === selectedHouseId;
-  });
+  // ── Filter helpers ────────────────────────────────────────────────────────
+  const filteredBeds = selectedHouseId === "all"
+    ? beds
+    : beds.filter((b: any) => (b.rooms as any)?.house_id === selectedHouseId);
+
+  const filteredInvoices = selectedHouseId === "all"
+    ? invoices
+    : invoices.filter((i: any) => i.house_id === selectedHouseId);
+
   const filteredExpenses = selectedHouseId === "all"
     ? expenses
     : expenses.filter((e: any) => e.house_id === selectedHouseId);
 
-  // ─── Financial calculations ───────────────────────────────────────────────
-  const totalBeds = filteredHouses.reduce((s: number, h: any) => s + (h.total_beds ?? 0), 0);
-  const activeResidents = filteredResidents.filter((r: any) => r.status === "active").length;
-  const occupancyRate = totalBeds > 0 ? (activeResidents / totalBeds) * 100 : 0;
+  // ── KPI calculations ──────────────────────────────────────────────────────
+  const totalBeds = filteredBeds.length;
+  const occupiedBeds = filteredBeds.filter((b: any) => b.status === "occupied").length;
+  const occupancyRate = totalBeds > 0 ? (occupiedBeds / totalBeds) * 100 : 0;
 
-  const totalRevenue = filteredPayments
-    .filter((p: any) => p.status === "paid")
-    .reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+  const paidInvoices = filteredInvoices.filter((i: any) => i.status === "paid");
+  const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
   const totalExpenses = filteredExpenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const noi = totalRevenue - totalExpenses;
   const noiMargin = totalRevenue > 0 ? (noi / totalRevenue) * 100 : 0;
 
-  // Cap rate: NOI / property value (assuming $200k per house as placeholder)
+  // Cap rate: annual NOI / property value ($200k per house as placeholder)
+  const filteredHouses = selectedHouseId === "all" ? houses : houses.filter((h: any) => h.id === selectedHouseId);
   const estimatedPropertyValue = filteredHouses.length * 200000;
   const capRate = estimatedPropertyValue > 0 ? (noi / estimatedPropertyValue) * 100 : 0;
-
-  // Cash-on-cash: NOI / invested capital (assume 20% down per house)
   const estimatedEquity = estimatedPropertyValue * 0.2;
   const cashOnCash = estimatedEquity > 0 ? (noi / estimatedEquity) * 100 : 0;
 
-  // ─── P&L trend data ───────────────────────────────────────────────────────
+  // ── P&L trend data (12 months) ────────────────────────────────────────────
   const plTrendData = months.map(({ label, date }) => {
     const snap = snapshots.find((s: any) => {
       if (selectedHouseId !== "all" && s.house_id !== selectedHouseId) return false;
       const d = new Date(s.month);
       return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
-
     if (snap) {
       return {
         month: label,
@@ -166,52 +165,41 @@ export default function InvestorPortal() {
         occupancy: Number(snap.occupancy_rate ?? 0),
       };
     }
-
-    const monthPaid = filteredPayments.filter((p: any) => {
-      if (!p.payment_date) return false;
-      const d = new Date(p.payment_date);
-      return p.status === "paid" && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+    const monthPaid = filteredInvoices.filter((i: any) => {
+      const d = i.paid_date ? new Date(i.paid_date) : null;
+      return i.status === "paid" && d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
     const monthExp = filteredExpenses.filter((e: any) => {
-      if (!e.date) return false;
-      const d = new Date(e.date);
-      return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+      const d = e.date ? new Date(e.date) : null;
+      return d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
-    const rev = monthPaid.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+    const rev = monthPaid.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
     const exp = monthExp.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    const active = filteredResidents.filter((r: any) => {
-      const moveIn = r.move_in_date ? new Date(r.move_in_date) : null;
-      const moveOut = r.move_out_date ? new Date(r.move_out_date) : null;
-      return moveIn && moveIn <= monthEnd && (!moveOut || moveOut > date);
-    }).length;
-    const occ = totalBeds > 0 ? Math.round((active / totalBeds) * 100) : 0;
-    return { month: label, revenue: rev, expenses: exp, noi: rev - exp, occupancy: occ };
+    return { month: label, revenue: rev, expenses: exp, noi: rev - exp, occupancy: Math.round(occupancyRate) };
   });
 
-  // ─── House-level P&L table ────────────────────────────────────────────────
+  // ── House-level P&L ───────────────────────────────────────────────────────
   const housePnL = houses.map((h: any) => {
-    const hRes = residents.filter((r: any) => r.house_id === h.id && r.status === "active").length;
-    const hPaid = payments
-      .filter((p: any) => {
-        const res = residents.find((r: any) => r.id === p.resident_id);
-        return res?.house_id === h.id && p.status === "paid";
-      })
-      .reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
-    const hExp = expenses
-      .filter((e: any) => e.house_id === h.id)
-      .reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-    const hNoi = hPaid - hExp;
-    const hOcc = h.total_beds > 0 ? Math.round((hRes / h.total_beds) * 100) : 0;
-    const hCapRate = 200000 > 0 ? ((hNoi / 200000) * 100) : 0;
-    return { ...h, revenue: hPaid, expenses: hExp, noi: hNoi, occupancy: hOcc, capRate: hCapRate, activeResidents: hRes };
+    const hBeds = beds.filter((b: any) => (b.rooms as any)?.house_id === h.id);
+    const hInvoices = invoices.filter((i: any) => i.house_id === h.id && i.status === "paid");
+    const hExp = expenses.filter((e: any) => e.house_id === h.id);
+    const hRev = hInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
+    const hExpTotal = hExp.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+    const hNoi = hRev - hExpTotal;
+    const hOccupied = hBeds.filter((b: any) => b.status === "occupied").length;
+    const hOcc = hBeds.length > 0 ? Math.round((hOccupied / hBeds.length) * 100) : 0;
+    const hCapRate = 200000 > 0 ? (hNoi / 200000) * 100 : 0;
+    return { ...h, revenue: hRev, expenses: hExpTotal, noi: hNoi, occupancy: hOcc, capRate: hCapRate, occupiedBeds: hOccupied, totalBeds: hBeds.length };
   });
 
-  // ─── PDF download (print current view) ───────────────────────────────────
   const handleDownloadReport = () => {
-    toast.info("PDF report generation requires a PDF library (e.g. jsPDF). In production this would trigger a server-side PDF render.");
+    toast.info("PDF generation requires a library like jsPDF. In production this triggers a server-side PDF render.");
     window.print();
   };
+
+  const allCollectionRate = invoices.length > 0
+    ? Math.round((invoices.filter((i: any) => i.status === "paid").length / invoices.length) * 100)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -233,16 +221,6 @@ export default function InvestorPortal() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={reportPeriod} onValueChange={(v) => setReportPeriod(v as any)}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="annual">Annual</SelectItem>
-            </SelectContent>
-          </Select>
           <Button variant="outline" onClick={handleDownloadReport}>
             <Download className="h-4 w-4 mr-2" />
             Download PDF
@@ -252,41 +230,16 @@ export default function InvestorPortal() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Total Revenue"
-          value={fmt(totalRevenue)}
-          sub="All collected payments"
-          icon={DollarSign}
-          color="text-green-600"
-        />
-        <MetricCard
-          title="Net Operating Income"
-          value={fmt(noi)}
-          sub={`${fmtPct(noiMargin)} NOI margin`}
-          icon={TrendingUp}
-          color={noi >= 0 ? "text-green-600" : "text-red-600"}
-        />
-        <MetricCard
-          title="Cap Rate"
-          value={fmtPct(capRate)}
-          sub="NOI / est. property value"
-          icon={Percent}
-          color="text-primary"
-        />
-        <MetricCard
-          title="Cash-on-Cash Return"
-          value={fmtPct(cashOnCash)}
-          sub="NOI / est. equity (20% down)"
-          icon={BarChart2}
-          color="text-primary"
-        />
+        <MetricCard title="Total Revenue" value={fmt(totalRevenue)} sub="All collected" icon={DollarSign} color="text-green-600" />
+        <MetricCard title="Net Operating Income" value={fmt(noi)} sub={`${fmtPct(noiMargin)} NOI margin`} icon={TrendingUp} color={noi >= 0 ? "text-green-600" : "text-red-600"} />
+        <MetricCard title="Cap Rate" value={fmtPct(capRate)} sub="NOI / est. property value" icon={Percent} />
+        <MetricCard title="Cash-on-Cash Return" value={fmtPct(cashOnCash)} sub="NOI / est. equity (20% down)" icon={BarChart2} />
       </div>
-
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Occupancy Rate" value={fmtPct(occupancyRate)} sub={`${activeResidents} / ${totalBeds} beds`} icon={Home} />
+        <MetricCard title="Occupancy Rate" value={fmtPct(occupancyRate)} sub={`${occupiedBeds} / ${totalBeds} beds`} icon={Home} />
         <MetricCard title="Total Expenses" value={fmt(totalExpenses)} sub="Operating costs" icon={DollarSign} color="text-red-600" />
         <MetricCard title="Properties" value={String(filteredHouses.length)} sub={`${totalBeds} total beds`} icon={Home} />
-        <MetricCard title="Revenue per Bed" value={activeResidents > 0 ? fmt(Math.round(totalRevenue / activeResidents)) : "—"} sub="Per occupied bed" icon={DollarSign} />
+        <MetricCard title="Revenue per Bed" value={occupiedBeds > 0 ? fmt(Math.round(totalRevenue / occupiedBeds)) : "—"} sub="Per occupied bed" icon={DollarSign} />
       </div>
 
       <Tabs defaultValue="pl">
@@ -330,9 +283,7 @@ export default function InvestorPortal() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>P&L Summary Table</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>P&L Summary Table</CardTitle></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -395,58 +346,42 @@ export default function InvestorPortal() {
 
         {/* By Property */}
         <TabsContent value="properties" className="space-y-4">
-          <div className="grid gap-4">
-            {housePnL.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                  <p>No properties found. Add houses to see property-level analytics.</p>
+          {housePnL.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                <p>No properties found.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            housePnL.map((h: any) => (
+              <Card key={h.id}>
+                <CardContent className="p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">{h.name}</h3>
+                        <Badge variant={h.occupancy >= 80 ? "default" : h.occupancy >= 60 ? "secondary" : "destructive"}>
+                          {h.occupancy}% occupied
+                        </Badge>
+                      </div>
+                      {h.address && <p className="text-xs text-muted-foreground">{h.address}</p>}
+                      <p className="text-xs text-muted-foreground mt-0.5">{h.occupiedBeds} / {h.totalBeds} beds occupied</p>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                      <div><p className="text-xs text-muted-foreground">Revenue</p><p className="font-semibold text-green-600">{fmt(h.revenue)}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Expenses</p><p className="font-semibold text-red-600">{fmt(h.expenses)}</p></div>
+                      <div><p className="text-xs text-muted-foreground">NOI</p><p className={`font-semibold ${h.noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(h.noi)}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Cap Rate</p><p className="font-semibold text-primary">{fmtPct(h.capRate)}</p></div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            ) : (
-              housePnL.map((h: any) => (
-                <Card key={h.id}>
-                  <CardContent className="p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{h.name}</h3>
-                          <Badge variant={h.occupancy >= 80 ? "default" : h.occupancy >= 60 ? "secondary" : "destructive"}>
-                            {h.occupancy}% occupied
-                          </Badge>
-                        </div>
-                        {h.address && <p className="text-xs text-muted-foreground">{h.address}</p>}
-                        <p className="text-xs text-muted-foreground mt-0.5">{h.activeResidents} / {h.total_beds ?? 0} beds occupied</p>
-                      </div>
-                      <div className="grid grid-cols-4 gap-4 text-center">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Revenue</p>
-                          <p className="font-semibold text-green-600">{fmt(h.revenue)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Expenses</p>
-                          <p className="font-semibold text-red-600">{fmt(h.expenses)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">NOI</p>
-                          <p className={`font-semibold ${h.noi >= 0 ? "text-green-600" : "text-red-600"}`}>{fmt(h.noi)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Cap Rate</p>
-                          <p className="font-semibold text-primary">{fmtPct(h.capRate)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+            ))
+          )}
 
           <Card>
-            <CardHeader>
-              <CardTitle>Portfolio Revenue Comparison</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Portfolio Revenue Comparison</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={housePnL}>
@@ -477,7 +412,7 @@ export default function InvestorPortal() {
                   { label: "Occupancy Rate", yours: occupancyRate, benchmark: 85, unit: "%" },
                   { label: "NOI Margin", yours: noiMargin, benchmark: 40, unit: "%" },
                   { label: "Cap Rate", yours: capRate, benchmark: 8, unit: "%" },
-                  { label: "Collection Rate", yours: payments.length > 0 ? Math.round((payments.filter((p: any) => p.status === "paid").length / payments.length) * 100) : 0, benchmark: 95, unit: "%" },
+                  { label: "Collection Rate", yours: allCollectionRate, benchmark: 95, unit: "%" },
                 ].map(({ label, yours, benchmark, unit }) => (
                   <div key={label} className="space-y-1.5">
                     <div className="flex justify-between text-sm">
@@ -504,9 +439,7 @@ export default function InvestorPortal() {
 
           <div className="grid lg:grid-cols-2 gap-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Investment Return Summary</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Investment Return Summary</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {[
                   { label: "Gross Revenue", value: fmt(totalRevenue) },
@@ -525,13 +458,11 @@ export default function InvestorPortal() {
               </CardContent>
             </Card>
             <Card>
-              <CardHeader>
-                <CardTitle>Key Notes</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Key Notes</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Cap rate and cash-on-cash calculations use an estimated property value of $200,000 per house as a placeholder. Update with actual appraisal values for accuracy.</p>
-                <p>• Revenue figures reflect collected payments recorded in the system. Accrued but unpaid rent is not included.</p>
-                <p>• Download a PDF report for a formatted investor presentation using the button above.</p>
+                <p>• Cap rate uses an estimated property value of $200,000 per house. Replace with actual appraisal values for accuracy.</p>
+                <p>• Revenue reflects invoices marked "paid" in SoberOps.</p>
+                <p>• Expense records must be entered in the Analytics → Expenses section.</p>
                 <p>• Connect QuickBooks in Settings for real-time P&L pulled from your accounting system.</p>
               </CardContent>
             </Card>

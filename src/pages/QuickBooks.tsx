@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,7 +76,7 @@ export default function QuickBooks() {
   const [resolutionDialogOpen, setResolutionDialogOpen] = useState(false);
 
   // ─── Fetch QB connection ────────────────────────────────────────────────────
-  const { data: connection, isLoading: connLoading } = useQuery({
+  const { data: connection } = useQuery({
     queryKey: ["qb_connection"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();

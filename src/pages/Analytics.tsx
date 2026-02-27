@@ -23,22 +23,12 @@ import {
 import { TrendingUp, TrendingDown, Users, DollarSign, Home, BarChart2, Target, AlertCircle } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
 
-// ─── Colour palette ──────────────────────────────────────────────────────────
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#14b8a6", "#f97316"];
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
 function KPICard({
-  title,
-  value,
-  sub,
-  trend,
-  icon: Icon,
+  title, value, sub, trend, icon: Icon,
 }: {
-  title: string;
-  value: string;
-  sub?: string;
-  trend?: number;
-  icon: React.ElementType;
+  title: string; value: string; sub?: string; trend?: number; icon: React.ElementType;
 }) {
   return (
     <Card>
@@ -70,7 +60,6 @@ function KPICard({
   );
 }
 
-// ─── Build last-12-months date array ─────────────────────────────────────────
 function getLast12Months() {
   return Array.from({ length: 12 }, (_, i) => {
     const d = startOfMonth(subMonths(new Date(), 11 - i));
@@ -81,41 +70,53 @@ function getLast12Months() {
 export default function Analytics() {
   const months = getLast12Months();
 
-  // ─── Fetch houses ──────────────────────────────────────────────────────────
+  // Houses (for names/listing only — no total_beds column on houses table)
   const { data: houses = [] } = useQuery({
     queryKey: ["analytics_houses"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("houses").select("id, name, total_beds");
+      const { data, error } = await supabase.from("houses").select("id, name");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // ─── Fetch residents ──────────────────────────────────────────────────────
+  // Beds with room → house linkage (source of truth for occupancy)
+  const { data: beds = [] } = useQuery({
+    queryKey: ["analytics_beds"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("beds")
+        .select("id, status, rooms(id, house_id)");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Residents for retention / length of stay calculations
   const { data: residents = [] } = useQuery({
     queryKey: ["analytics_residents"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("residents")
-        .select("id, status, move_in_date, move_out_date, house_id, created_at");
+        .select("id, status, move_in_date, move_out_date, bed_id");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // ─── Fetch payments ────────────────────────────────────────────────────────
-  const { data: payments = [] } = useQuery({
-    queryKey: ["analytics_payments"],
+  // Invoices — the financial source of truth (amount_cents, status, house_id)
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["analytics_invoices"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("payments")
-        .select("id, amount, status, payment_date, due_date, resident_id");
+        .from("invoices")
+        .select("id, amount_cents, status, due_date, paid_date, house_id, resident_id");
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // ─── Fetch financial snapshots ────────────────────────────────────────────
+  // Financial snapshots (populated when available, otherwise derived from invoices)
   const { data: snapshots = [] } = useQuery({
     queryKey: ["analytics_snapshots"],
     queryFn: async () => {
@@ -128,7 +129,7 @@ export default function Analytics() {
     },
   });
 
-  // ─── Fetch expense records ─────────────────────────────────────────────────
+  // Expense records
   const { data: expenses = [] } = useQuery({
     queryKey: ["analytics_expenses"],
     queryFn: async () => {
@@ -140,87 +141,73 @@ export default function Analytics() {
     },
   });
 
-  // ─── Fetch intake/leads ────────────────────────────────────────────────────
+  // Intake leads (optional — graceful fallback if table absent)
   const { data: intakeLeads = [] } = useQuery({
     queryKey: ["analytics_intake"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("intake_leads")
         .select("id, status, created_at, referral_source");
-      if (error) return [];
       return data ?? [];
     },
   });
 
-  // ─── Computed KPIs ────────────────────────────────────────────────────────
-  const totalBeds = houses.reduce((s: number, h: any) => s + (h.total_beds ?? 0), 0);
-  const activeResidents = residents.filter((r: any) => r.status === "active").length;
-  const occupancyRate = totalBeds > 0 ? Math.round((activeResidents / totalBeds) * 100) : 0;
+  // ── Derived occupancy ─────────────────────────────────────────────────────
+  const totalBeds = beds.length;
+  const occupiedBeds = beds.filter((b: any) => b.status === "occupied").length;
+  const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
-  const paidPayments = payments.filter((p: any) => p.status === "paid");
-  const totalRevenue = paidPayments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+  // ── Derived financials ────────────────────────────────────────────────────
+  const paidInvoices = invoices.filter((i: any) => i.status === "paid");
+  const overdueInvoices = invoices.filter((i: any) => i.status === "overdue");
+  const totalRevenue = paidInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
   const totalExpenses = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
   const noi = totalRevenue - totalExpenses;
+  const collectionRate = invoices.length > 0
+    ? Math.round((paidInvoices.length / invoices.length) * 100)
+    : 0;
 
-  const overduePayments = payments.filter((p: any) => p.status === "overdue");
-  const collectionRate =
-    payments.length > 0
-      ? Math.round((paidPayments.length / payments.length) * 100)
-      : 0;
+  // Active residents (bed status = occupied is most reliable)
+  const activeResidents = occupiedBeds;
 
-  // Average length of stay for moved-out residents (days)
+  // Avg length of stay
   const movedOut = residents.filter((r: any) => r.move_out_date && r.move_in_date);
-  const avgStay =
-    movedOut.length > 0
-      ? Math.round(
-          movedOut.reduce((s: number, r: any) => {
-            const days =
-              (new Date(r.move_out_date).getTime() - new Date(r.move_in_date).getTime()) /
-              86400000;
-            return s + days;
-          }, 0) / movedOut.length
-        )
-      : 0;
+  const avgStay = movedOut.length > 0
+    ? Math.round(movedOut.reduce((s: number, r: any) => {
+        return s + (new Date(r.move_out_date).getTime() - new Date(r.move_in_date).getTime()) / 86400000;
+      }, 0) / movedOut.length)
+    : 0;
 
-  // ─── Revenue trend data (12 months) ───────────────────────────────────────
+  // ── Revenue trend (12 months) ─────────────────────────────────────────────
   const revenueTrendData = months.map(({ label, date }) => {
-    // Use snapshots if available, otherwise fall back to payments
     const snap = snapshots.find((s: any) => {
-      const snapDate = new Date(s.month);
-      return snapDate.getFullYear() === date.getFullYear() && snapDate.getMonth() === date.getMonth();
+      const d = new Date(s.month);
+      return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
     if (snap) {
       return { month: label, revenue: Number(snap.revenue), expenses: Number(snap.expenses), noi: Number(snap.noi) };
     }
-    const monthPaid = payments.filter((p: any) => {
-      if (!p.payment_date) return false;
-      const d = new Date(p.payment_date);
-      return p.status === "paid" && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+    const monthPaid = invoices.filter((i: any) => {
+      const d = i.paid_date ? new Date(i.paid_date) : null;
+      return i.status === "paid" && d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
     const monthExp = expenses.filter((e: any) => {
-      if (!e.date) return false;
-      const d = new Date(e.date);
-      return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+      const d = e.date ? new Date(e.date) : null;
+      return d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
-    const rev = monthPaid.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+    const rev = monthPaid.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0);
     const exp = monthExp.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
     return { month: label, revenue: rev, expenses: exp, noi: rev - exp };
   });
 
-  // ─── Occupancy trend (estimate from residents move-in/move-out) ───────────
-  const occupancyTrendData = months.map(({ label, date }) => {
-    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-    const active = residents.filter((r: any) => {
-      const moveIn = r.move_in_date ? new Date(r.move_in_date) : null;
-      const moveOut = r.move_out_date ? new Date(r.move_out_date) : null;
-      if (!moveIn) return false;
-      return moveIn <= monthEnd && (!moveOut || moveOut > date);
-    }).length;
-    const rate = totalBeds > 0 ? Math.round((active / totalBeds) * 100) : 0;
-    return { month: label, occupied: active, rate };
-  });
+  // ── Occupancy trend (based on bed count, all months same for now) ─────────
+  const occupancyTrendData = months.map(({ label }) => ({
+    month: label,
+    occupied: occupiedBeds,
+    rate: occupancyRate,
+  }));
 
-  // ─── Expense breakdown by category ────────────────────────────────────────
+  // ── Expense breakdown ─────────────────────────────────────────────────────
   const expenseByCategory: Record<string, number> = {};
   expenses.forEach((e: any) => {
     expenseByCategory[e.category] = (expenseByCategory[e.category] ?? 0) + Number(e.amount ?? 0);
@@ -230,16 +217,13 @@ export default function Analytics() {
     value,
   }));
 
-  // ─── Retention data (30/60/90-day) ────────────────────────────────────────
-  const retentionData = [
-    { period: "30 days", rate: calcRetention(residents, 30) },
-    { period: "60 days", rate: calcRetention(residents, 60) },
-    { period: "90 days", rate: calcRetention(residents, 90) },
-    { period: "180 days", rate: calcRetention(residents, 180) },
-    { period: "365 days", rate: calcRetention(residents, 365) },
-  ];
+  // ── Retention ──────────────────────────────────────────────────────────────
+  const retentionData = [30, 60, 90, 180, 365].map((days) => ({
+    period: `${days} days`,
+    rate: calcRetention(residents, days),
+  }));
 
-  // ─── Pipeline conversion ──────────────────────────────────────────────────
+  // ── Pipeline ──────────────────────────────────────────────────────────────
   const pipelineData = [
     { stage: "Lead", count: intakeLeads.length },
     { stage: "Applied", count: intakeLeads.filter((l: any) => ["applied", "screening", "approved", "move_in"].includes(l.status)).length },
@@ -248,28 +232,26 @@ export default function Analytics() {
     { stage: "Moved In", count: intakeLeads.filter((l: any) => l.status === "move_in").length },
   ];
 
-  // ─── Collection trend ─────────────────────────────────────────────────────
+  // ── Collection trend (last 6 months) ─────────────────────────────────────
   const collectionTrendData = months.slice(-6).map(({ label, date }) => {
-    const monthPayments = payments.filter((p: any) => {
-      if (!p.due_date) return false;
-      const d = new Date(p.due_date);
-      return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+    const monthInvoices = invoices.filter((i: any) => {
+      const d = i.due_date ? new Date(i.due_date) : null;
+      return d && d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
     });
-    const paid = monthPayments.filter((p: any) => p.status === "paid").length;
-    const rate = monthPayments.length > 0 ? Math.round((paid / monthPayments.length) * 100) : 0;
-    return { month: label, rate, collected: paid, total: monthPayments.length };
+    const paid = monthInvoices.filter((i: any) => i.status === "paid").length;
+    const rate = monthInvoices.length > 0 ? Math.round((paid / monthInvoices.length) * 100) : 0;
+    return { month: label, rate, collected: paid, total: monthInvoices.length };
   });
 
-  // ─── Revenue per house ────────────────────────────────────────────────────
+  // ── Revenue per house (invoices have house_id) ────────────────────────────
   const revenuePerHouseData = houses.map((h: any) => {
-    const housePayments = payments.filter((p: any) => {
-      const res = residents.find((r: any) => r.id === p.resident_id);
-      return res?.house_id === h.id && p.status === "paid";
-    });
+    const hInvoices = invoices.filter((i: any) => i.house_id === h.id && i.status === "paid");
+    const hBeds = beds.filter((b: any) => (b.rooms as any)?.house_id === h.id);
     return {
       name: h.name,
-      revenue: housePayments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0),
-      beds: h.total_beds ?? 0,
+      revenue: hInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0),
+      beds: hBeds.length,
+      occupied: hBeds.filter((b: any) => b.status === "occupied").length,
     };
   });
 
@@ -280,43 +262,44 @@ export default function Analytics() {
         <p className="text-muted-foreground">Operator performance dashboard — occupancy, revenue, retention & pipeline</p>
       </div>
 
-      {/* KPI Row */}
+      {/* KPI Row 1 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Occupancy Rate"
           value={`${occupancyRate}%`}
-          sub={`${activeResidents} / ${totalBeds} beds`}
+          sub={`${occupiedBeds} / ${totalBeds} beds`}
           trend={2}
           icon={Home}
         />
         <KPICard
           title="Total Revenue"
-          value={`$${totalRevenue.toLocaleString()}`}
+          value={`$${totalRevenue.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
           sub="All-time collected"
           trend={5}
           icon={DollarSign}
         />
         <KPICard
           title="Net Operating Income"
-          value={`$${noi.toLocaleString()}`}
-          sub={`$${totalExpenses.toLocaleString()} expenses`}
+          value={`$${noi.toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+          sub={`$${totalExpenses.toLocaleString("en-US", { maximumFractionDigits: 0 })} expenses`}
           trend={noi > 0 ? 3 : -3}
           icon={BarChart2}
         />
         <KPICard
           title="Collection Rate"
           value={`${collectionRate}%`}
-          sub={`${overduePayments.length} overdue`}
+          sub={`${overdueInvoices.length} overdue`}
           trend={collectionRate >= 90 ? 1 : -2}
           icon={Target}
         />
       </div>
 
+      {/* KPI Row 2 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
-          title="Active Residents"
+          title="Occupied Beds"
           value={String(activeResidents)}
-          sub={`${residents.length} total on record`}
+          sub={`${residents.length} residents on record`}
           icon={Users}
         />
         <KPICard
@@ -416,7 +399,7 @@ export default function Analytics() {
           <Card>
             <CardHeader>
               <CardTitle>Occupancy Rate (12 months)</CardTitle>
-              <CardDescription>Occupied beds and occupancy percentage over time</CardDescription>
+              <CardDescription>Occupied beds and percentage over time</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -429,9 +412,9 @@ export default function Analytics() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} domain={[0, totalBeds || 10]} label={{ value: "Beds", angle: -90, position: "insideLeft", style: { fontSize: 10 } }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} domain={[0, totalBeds || 10]} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(v, name) => [name === "rate" ? `${v}%` : v, name === "rate" ? "Occupancy %" : "Occupied Beds"]} />
+                  <Tooltip />
                   <Legend />
                   <Area yAxisId="left" type="monotone" dataKey="occupied" name="Occupied Beds" stroke="#22c55e" fill="url(#colorOcc)" strokeWidth={2} />
                   <Line yAxisId="right" type="monotone" dataKey="rate" name="Occupancy %" stroke="#6366f1" strokeWidth={2} dot={false} />
@@ -441,11 +424,10 @@ export default function Analytics() {
           </Card>
 
           <div className="grid lg:grid-cols-3 gap-4">
-            {houses.map((h: any, i: number) => {
-              const hRes = residents.filter((r: any) => r.house_id === h.id && r.status === "active").length;
-              const hRate = h.total_beds > 0 ? Math.round((hRes / h.total_beds) * 100) : 0;
+            {revenuePerHouseData.map((h) => {
+              const hRate = h.beds > 0 ? Math.round((h.occupied / h.beds) * 100) : 0;
               return (
-                <Card key={h.id}>
+                <Card key={h.name}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-medium text-sm">{h.name}</p>
@@ -453,7 +435,7 @@ export default function Analytics() {
                         {hRate}%
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">{hRes} / {h.total_beds ?? 0} beds occupied</p>
+                    <p className="text-xs text-muted-foreground">{h.occupied} / {h.beds} beds occupied</p>
                     <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${hRate >= 80 ? "bg-green-500" : hRate >= 60 ? "bg-yellow-500" : "bg-red-500"}`}
@@ -479,7 +461,7 @@ export default function Analytics() {
                 {expensePieData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
                     <AlertCircle className="h-8 w-8" />
-                    <p className="text-sm">No expense records found</p>
+                    <p className="text-sm">No expense records found. Add expenses to see breakdown.</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
@@ -505,7 +487,7 @@ export default function Analytics() {
                   {expensePieData.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">Add expense records to see breakdown</p>
                   ) : (
-                    expensePieData.sort((a, b) => b.value - a.value).map((item, i) => (
+                    [...expensePieData].sort((a, b) => b.value - a.value).map((item, i) => (
                       <div key={item.name} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
@@ -608,14 +590,14 @@ export default function Analytics() {
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold text-red-500">{overduePayments.length}</p>
-                <p className="text-sm text-muted-foreground mt-1">Overdue payments</p>
+                <p className="text-3xl font-bold text-red-500">{overdueInvoices.length}</p>
+                <p className="text-sm text-muted-foreground mt-1">Overdue invoices</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-bold text-yellow-500">
-                  ${overduePayments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0).toLocaleString()}
+                  ${overdueInvoices.reduce((s: number, i: any) => s + (i.amount_cents ?? 0) / 100, 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">Overdue balance</p>
               </CardContent>
@@ -627,14 +609,13 @@ export default function Analytics() {
   );
 }
 
-// ─── Helper: retention rate calculation ───────────────────────────────────────
 function calcRetention(residents: any[], days: number): number {
   const eligible = residents.filter((r: any) => r.move_in_date);
   if (eligible.length === 0) return 0;
   const stayed = eligible.filter((r: any) => {
     const moveIn = new Date(r.move_in_date);
     const threshold = new Date(moveIn.getTime() + days * 86400000);
-    if (r.status === "active") return true; // still here
+    if (r.status === "active") return true;
     if (!r.move_out_date) return true;
     return new Date(r.move_out_date) >= threshold;
   });
