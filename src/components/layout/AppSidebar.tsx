@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Calculator,
   Link2,
+  Rocket,
 } from "lucide-react";
 import {
   Sidebar,
@@ -69,6 +70,7 @@ const analyticsItem = { title: "Analytics", url: "/analytics", icon: BarChart2 }
 const projectionsItem = { title: "Projections", url: "/projections", icon: Calculator };
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
 const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
+const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
 
 function NavGroup({
   label,
@@ -117,11 +119,13 @@ export function AppSidebar() {
   const enableAnalytics = typeof window !== "undefined" && localStorage.getItem("ENABLE_ANALYTICS") === "true";
   const enableInvestorPortal = typeof window !== "undefined" && localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true";
   const enableQuickBooks = typeof window !== "undefined" && localStorage.getItem("ENABLE_QUICKBOOKS") === "true";
+  const enableStartupWizard = typeof window !== "undefined" && localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true";
 
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
     ...(enableCRM ? [crmItem] : []),
     ...(enableMaintenance ? [maintenanceItem] : []),
+    ...(enableStartupWizard ? [startupWizardItem] : []),
   ];
 
   const analyticsItems = [

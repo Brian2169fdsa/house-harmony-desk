@@ -35,6 +35,7 @@ export default function Settings() {
   const [enableAnalytics, setEnableAnalytics] = useState(false);
   const [enableInvestorPortal, setEnableInvestorPortal] = useState(false);
   const [enableQuickBooks, setEnableQuickBooks] = useState(false);
+  const [enableStartupWizard, setEnableStartupWizard] = useState(false);
 
   // Facility settings form state
   const [facilityName, setFacilityName] = useState("");
@@ -54,6 +55,7 @@ export default function Settings() {
     setEnableAnalytics(localStorage.getItem("ENABLE_ANALYTICS") === "true");
     setEnableInvestorPortal(localStorage.getItem("ENABLE_INVESTOR_PORTAL") === "true");
     setEnableQuickBooks(localStorage.getItem("ENABLE_QUICKBOOKS") === "true");
+    setEnableStartupWizard(localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true");
   }, []);
 
   // Load facility settings from DB
@@ -121,6 +123,7 @@ export default function Settings() {
     if (flag === "ENABLE_ANALYTICS") setEnableAnalytics(enabled);
     if (flag === "ENABLE_INVESTOR_PORTAL") setEnableInvestorPortal(enabled);
     if (flag === "ENABLE_QUICKBOOKS") setEnableQuickBooks(enabled);
+    if (flag === "ENABLE_STARTUP_WIZARD") setEnableStartupWizard(enabled);
     toast.success("Feature flag updated. Refresh the page to see changes.");
   };
 
@@ -338,6 +341,20 @@ export default function Settings() {
                 checked={enableQuickBooks}
                 onCheckedChange={(checked) =>
                   handleFeatureFlagChange("ENABLE_QUICKBOOKS", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Startup Wizard</Label>
+                <p className="text-sm text-muted-foreground">
+                  Guided 10-step setup for launching a new Arizona sober living house
+                </p>
+              </div>
+              <Switch
+                checked={enableStartupWizard}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_STARTUP_WIZARD", checked)
                 }
               />
             </div>
