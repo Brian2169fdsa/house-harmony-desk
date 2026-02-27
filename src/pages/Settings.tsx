@@ -38,6 +38,7 @@ export default function Settings() {
   const [enableStartupWizard, setEnableStartupWizard] = useState(false);
   const [enableChecklists, setEnableChecklists] = useState(false);
   const [enableDocumentTemplates, setEnableDocumentTemplates] = useState(false);
+  const [enableLMS, setEnableLMS] = useState(false);
 
   // Facility settings form state
   const [facilityName, setFacilityName] = useState("");
@@ -60,6 +61,7 @@ export default function Settings() {
     setEnableStartupWizard(localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true");
     setEnableChecklists(localStorage.getItem("ENABLE_CHECKLISTS") === "true");
     setEnableDocumentTemplates(localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true");
+    setEnableLMS(localStorage.getItem("ENABLE_LMS") === "true");
   }, []);
 
   // Load facility settings from DB
@@ -130,6 +132,7 @@ export default function Settings() {
     if (flag === "ENABLE_STARTUP_WIZARD") setEnableStartupWizard(enabled);
     if (flag === "ENABLE_CHECKLISTS") setEnableChecklists(enabled);
     if (flag === "ENABLE_DOCUMENT_TEMPLATES") setEnableDocumentTemplates(enabled);
+    if (flag === "ENABLE_LMS") setEnableLMS(enabled);
     toast.success("Feature flag updated. Refresh the page to see changes.");
   };
 
@@ -389,6 +392,20 @@ export default function Settings() {
                 checked={enableDocumentTemplates}
                 onCheckedChange={(checked) =>
                   handleFeatureFlagChange("ENABLE_DOCUMENT_TEMPLATES", checked)
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Staff Training (LMS)</Label>
+                <p className="text-sm text-muted-foreground">
+                  Online training courses with quizzes and certificates for staff and house managers
+                </p>
+              </div>
+              <Switch
+                checked={enableLMS}
+                onCheckedChange={(checked) =>
+                  handleFeatureFlagChange("ENABLE_LMS", checked)
                 }
               />
             </div>

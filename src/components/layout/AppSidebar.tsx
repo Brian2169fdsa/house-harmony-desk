@@ -24,6 +24,7 @@ import {
   Link2,
   Rocket,
   ClipboardCheck,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
@@ -71,6 +72,7 @@ const projectionsItem = { title: "Projections", url: "/projections", icon: Calcu
 const investorPortalItem = { title: "Investor Portal", url: "/investor-portal", icon: TrendingUp };
 const quickBooksItem = { title: "QuickBooks", url: "/quickbooks", icon: Link2 };
 const startupWizardItem = { title: "Startup Wizard", url: "/startup", icon: Rocket };
+const lmsItem = { title: "Training", url: "/training", icon: GraduationCap };
 const checklistsItem = { title: "Checklists", url: "/checklists", icon: ClipboardCheck };
 const documentTemplatesItem = { title: "Documents", url: "/documents", icon: FileText };
 
@@ -124,6 +126,7 @@ export function AppSidebar() {
   const enableStartupWizard = typeof window !== "undefined" && localStorage.getItem("ENABLE_STARTUP_WIZARD") === "true";
   const enableChecklists = typeof window !== "undefined" && localStorage.getItem("ENABLE_CHECKLISTS") === "true";
   const enableDocumentTemplates = typeof window !== "undefined" && localStorage.getItem("ENABLE_DOCUMENT_TEMPLATES") === "true";
+  const enableLMS = typeof window !== "undefined" && localStorage.getItem("ENABLE_LMS") === "true";
 
   const featureItems = [
     ...(enableIntake ? [intakeItem] : []),
@@ -132,6 +135,7 @@ export function AppSidebar() {
     ...(enableStartupWizard ? [startupWizardItem] : []),
     ...(enableChecklists ? [checklistsItem] : []),
     ...(enableDocumentTemplates ? [documentTemplatesItem] : []),
+    ...(enableLMS ? [lmsItem] : []),
   ];
 
   const analyticsItems = [

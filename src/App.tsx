@@ -24,6 +24,9 @@ import CRMReferrals from "./pages/CRMReferrals";
 import Maintenance from "./pages/Maintenance";
 import StartupWizardList from "./pages/StartupWizardList";
 import StartupWizard from "./pages/StartupWizard";
+import LMSCourses from "./pages/LMSCourses";
+import LMSCourseDetail from "./pages/LMSCourseDetail";
+import LMSLesson from "./pages/LMSLesson";
 import Analytics from "./pages/Analytics";
 import InvestorPortal from "./pages/InvestorPortal";
 import Projections from "./pages/Projections";
@@ -135,6 +138,9 @@ const App = () => {
               <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/training" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><LMSCourses /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/training/:courseId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><LMSCourseDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
+              <Route path="/training/:courseId/:lessonId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><LMSLesson /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Analytics /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/investor-portal" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorPortal /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
