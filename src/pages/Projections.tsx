@@ -21,8 +21,109 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Calculator, TrendingUp, Save, Trash2, AlertCircle } from "lucide-react";
+import { Calculator, TrendingUp, Save, Trash2, AlertCircle, Building2 } from "lucide-react";
 import { toast } from "sonner";
+
+// ─── SLH vs BHRF startup cost data (from pages 11-15 of guide) ───────────────
+const STARTUP_COST_ROWS = [
+  { item: "Legal entity + policies + contracts", slhLow: 3000, slhHigh: 15000, bhrfLow: 10000, bhrfHigh: 40000, note: "More intensive for clinical compliance + payer contracts (BHRF)" },
+  { item: "Local zoning / use permit", slhLow: 0, slhHigh: 10000, bhrfLow: 2000, bhrfHigh: 25000, note: "BHRF may trigger conditional use permit + planning hearings" },
+  { item: "Building / fire code renovations", slhLow: 10000, slhHigh: 80000, bhrfLow: 25000, bhrfHigh: 200000, note: "BHRF triggers more stringent occupancy/egress/systems (IFC + PBCC)" },
+  { item: "Furnishings, beds, linens, security", slhLow: 8000, slhHigh: 35000, bhrfLow: 15000, bhrfHigh: 60000, note: "" },
+  { item: "Safety gear (extinguishers, detectors, egress)", slhLow: 500, slhHigh: 3000, bhrfLow: 2000, bhrfHigh: 10000, note: "SLH: UL-rated extinguisher, evacuation plan postings required" },
+  { item: "IT + EHR / record system", slhLow: 1000, slhHigh: 10000, bhrfLow: 5000, bhrfHigh: 40000, note: "BHRF: medical records must be HIPAA/Part 2 protected & retrievable" },
+  { item: "ADHS licensing fees", slhLow: 600, slhHigh: 1500, bhrfLow: 1000, bhrfHigh: 5000, note: "SLH: $500 + $100×max residents. BHRF: varies by class and capacity" },
+  { item: "AzRHA / NARR certification", slhLow: 580, slhHigh: 580, bhrfLow: 0, bhrfHigh: 2000, note: "AzRHA: $400 membership + $100/house + $10/bed/yr (Level I/II)" },
+  { item: "Initial staffing recruitment + training", slhLow: 5000, slhHigh: 25000, bhrfLow: 20000, bhrfHigh: 80000, note: "BHRF requires qualified clinical staff + fingerprint clearance" },
+  { item: "Insurance (Year 1 premiums)", slhLow: 3000, slhHigh: 15000, bhrfLow: 10000, bhrfHigh: 40000, note: "Higher for clinical/professional liability (BHRF)" },
+  { item: "Working capital reserve (2–3 months)", slhLow: 20000, slhHigh: 80000, bhrfLow: 80000, bhrfHigh: 250000, note: "Covers ramp-up before steady occupancy" },
+];
+
+function StartupCostTable() {
+  const [mode, setMode] = useState<"slh" | "bhrf">("slh");
+
+  const rows = STARTUP_COST_ROWS;
+  const totalLow = rows.reduce((s, r) => s + (mode === "slh" ? r.slhLow : r.bhrfLow), 0);
+  const totalHigh = rows.reduce((s, r) => s + (mode === "slh" ? r.slhHigh : r.bhrfHigh), 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-medium">Facility Type:</span>
+        <div className="flex rounded-lg border overflow-hidden">
+          <button
+            onClick={() => setMode("slh")}
+            className={`px-4 py-1.5 text-sm font-medium transition-colors ${mode === "slh" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"}`}
+          >
+            SLH (Sober Living Home)
+          </button>
+          <button
+            onClick={() => setMode("bhrf")}
+            className={`px-4 py-1.5 text-sm font-medium transition-colors ${mode === "bhrf" ? "bg-primary text-primary-foreground" : "hover:bg-muted/50"}`}
+          >
+            BHRF (Behavioral Health RF)
+          </button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            {mode === "slh" ? "SLH — Startup Cost Estimates (Maricopa County, AZ)" : "BHRF — Startup Cost Estimates (Maricopa County, AZ)"}
+          </CardTitle>
+          <CardDescription>
+            {mode === "slh"
+              ? "ADHS-licensed Sober Living Home (R9-12). No clinical services on-site. AzRHA/NARR certification recommended."
+              : "ADHS-licensed Behavioral Health Residential Facility (R9-10). Clinical services permitted. Higher staffing and facility requirements."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 font-medium text-muted-foreground">Line Item</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">Low</th>
+                  <th className="text-right py-2 font-medium text-muted-foreground">High</th>
+                  <th className="text-left py-2 pl-3 font-medium text-muted-foreground hidden md:table-cell">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const low = mode === "slh" ? row.slhLow : row.bhrfLow;
+                  const high = mode === "slh" ? row.slhHigh : row.bhrfHigh;
+                  return (
+                    <tr key={row.item} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="py-2 pr-3">{row.item}</td>
+                      <td className="py-2 text-right tabular-nums">{fmt(low)}</td>
+                      <td className="py-2 text-right tabular-nums">{fmt(high)}</td>
+                      <td className="py-2 pl-3 text-xs text-muted-foreground hidden md:table-cell">{row.note}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2">
+                  <td className="py-3 font-bold">TOTAL ESTIMATED STARTUP</td>
+                  <td className="py-3 text-right font-bold text-green-700">{fmt(totalLow)}</td>
+                  <td className="py-3 text-right font-bold text-amber-700">{fmt(totalHigh)}</td>
+                  <td className="hidden md:table-cell" />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div className="mt-4 p-3 rounded-lg bg-muted/40 text-xs text-muted-foreground space-y-1">
+            <p><strong>Source:</strong> Pages 11-15 of Arizona Sober Living Startup Guide (Maricopa County, AZ baseline — 10 residents).</p>
+            <p><strong>ADHS SLH fee formula:</strong> $500 + $100 × max residents. For 10 residents = $1,500.</p>
+            <p><strong>AzRHA/NARR:</strong> $400 membership + $100/house inspection + $10/bed/year (Level I/II).</p>
+            <p><strong>Note:</strong> Ranges reflect lease-based model. Property acquisition (purchase) adds $400K–$1.5M.</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
@@ -345,11 +446,12 @@ export default function Projections() {
           </div>
 
           <Tabs defaultValue="projection">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="projection">24-Month Projection</TabsTrigger>
               <TabsTrigger value="breakeven">Break-Even</TabsTrigger>
               <TabsTrigger value="expenses">Expense Mix</TabsTrigger>
               <TabsTrigger value="dscr">DSCR / ROI</TabsTrigger>
+              <TabsTrigger value="startup_cost">Startup Cost</TabsTrigger>
             </TabsList>
 
             {/* 24-month projection */}
@@ -576,6 +678,10 @@ export default function Projections() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+            {/* Startup Cost SLH vs BHRF */}
+            <TabsContent value="startup_cost">
+              <StartupCostTable />
             </TabsContent>
           </Tabs>
         </div>
