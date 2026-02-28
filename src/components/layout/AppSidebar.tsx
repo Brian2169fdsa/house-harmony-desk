@@ -29,6 +29,7 @@ import {
   HandshakeIcon,
   Receipt,
   MapPin,
+  ScrollText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -67,6 +68,7 @@ const safetyItems = [
 
 const adminItems = [
   { title: "Staff", url: "/staff", icon: UserCog },
+  { title: "Audit Log", url: "/audit-log", icon: ScrollText },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
