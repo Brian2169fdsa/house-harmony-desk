@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
 import FeatureGate from "./components/FeatureGate";
 import { UserRoleProvider } from "./contexts/UserRoleContext";
+import { AssistantProvider } from "./contexts/AssistantContext";
+import { AssistantPanel } from "./components/assistant/AssistantPanel";
+import { AssistantFAB } from "./components/assistant/AssistantFAB";
 import Overview from "./pages/Overview";
 import Houses from "./pages/Houses";
 import HouseDetail from "./pages/HouseDetail";
@@ -35,6 +38,21 @@ import InvestorPortal from "./pages/InvestorPortal";
 import Projections from "./pages/Projections";
 import QuickBooks from "./pages/QuickBooks";
 import Staff from "./pages/Staff";
+import StaffScheduling from "./pages/StaffScheduling";
+import InvestorManagement from "./pages/InvestorManagement";
+import MaintenanceBudgets from "./pages/MaintenanceBudgets";
+import PreventiveMaintenance from "./pages/PreventiveMaintenance";
+import AlumniNetwork from "./pages/AlumniNetwork";
+import AgentHub from "./pages/AgentHub";
+import AgentActivityLog from "./pages/AgentActivityLog";
+import ComplianceDashboard from "./pages/ComplianceDashboard";
+import MarketingAnalytics from "./pages/MarketingAnalytics";
+import NotificationSettings from "./pages/NotificationSettings";
+import QuickBooksSettings from "./pages/QuickBooksSettings";
+import QuickBooksSyncDashboard from "./pages/QuickBooksSyncDashboard";
+import QuickBooksReports from "./pages/QuickBooksReports";
+import MessageTemplateManager from "./pages/MessageTemplateManager";
+import PortfolioView from "./pages/PortfolioView";
 import DrugTests from "./pages/DrugTests";
 import Recovery from "./pages/Recovery";
 import Documents from "./pages/Documents";
@@ -42,6 +60,12 @@ import Checklists from "./pages/Checklists";
 import ChecklistDetail from "./pages/ChecklistDetail";
 import DocumentGenerate from "./pages/DocumentGenerate";
 import Emergency from "./pages/Emergency";
+import OccupancyDashboard from "./pages/OccupancyDashboard";
+import ReportCenter from "./pages/ReportCenter";
+import CommunicationCenter from "./pages/CommunicationCenter";
+import CommunicationHistory from "./pages/CommunicationHistory";
+import CommunicationTemplates from "./pages/CommunicationTemplates";
+import AuditLog from "./pages/AuditLog";
 import Accreditation from "./pages/Accreditation";
 import CommunityEngagement from "./pages/CommunityEngagement";
 import Expenses from "./pages/Expenses";
@@ -115,50 +139,75 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <UserRoleProvider>
-            <Routes>
-              <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+            <AssistantProvider>
+              <Routes>
+                <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
 
-              <Route path="/" element={<ProtectedRoute><MainLayout><Overview /></MainLayout></ProtectedRoute>} />
-              <Route path="/houses" element={<ProtectedRoute><MainLayout><Houses /></MainLayout></ProtectedRoute>} />
-              <Route path="/houses/:id" element={<ProtectedRoute><MainLayout><HouseDetail /></MainLayout></ProtectedRoute>} />
-              <Route path="/residents" element={<ProtectedRoute><MainLayout><Residents /></MainLayout></ProtectedRoute>} />
-              <Route path="/payments" element={<ProtectedRoute><MainLayout><Payments /></MainLayout></ProtectedRoute>} />
-              <Route path="/notices" element={<ProtectedRoute><MainLayout><Notices /></MainLayout></ProtectedRoute>} />
-              <Route path="/messages" element={<ProtectedRoute><MainLayout><Messages /></MainLayout></ProtectedRoute>} />
-              <Route path="/chores" element={<ProtectedRoute><MainLayout><Chores /></MainLayout></ProtectedRoute>} />
-              <Route path="/incidents" element={<ProtectedRoute><MainLayout><Incidents /></MainLayout></ProtectedRoute>} />
-              <Route path="/resources" element={<ProtectedRoute><MainLayout><Resources /></MainLayout></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
-              <Route path="/staff" element={<ProtectedRoute><MainLayout><Staff /></MainLayout></ProtectedRoute>} />
-              <Route path="/drug-tests" element={<ProtectedRoute><MainLayout><DrugTests /></MainLayout></ProtectedRoute>} />
-              <Route path="/recovery" element={<ProtectedRoute><MainLayout><Recovery /></MainLayout></ProtectedRoute>} />
-              <Route path="/documents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><Documents /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/documents/generate/:templateId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><DocumentGenerate /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/checklists" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><Checklists /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/checklists/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><ChecklistDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/emergency" element={<ProtectedRoute><MainLayout><Emergency /></MainLayout></ProtectedRoute>} />
-              <Route path="/accreditation" element={<ProtectedRoute><MainLayout><Accreditation /></MainLayout></ProtectedRoute>} />
-              <Route path="/community-engagement" element={<ProtectedRoute><MainLayout><CommunityEngagement /></MainLayout></ProtectedRoute>} />
-              <Route path="/expenses" element={<ProtectedRoute><MainLayout><Expenses /></MainLayout></ProtectedRoute>} />
-              <Route path="/intake" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/crm" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/onboarding" element={<ProtectedRoute><MainLayout><OperatorOnboarding /></MainLayout></ProtectedRoute>} />
-              <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/training" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingHub /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/training/courses" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><CoursesCatalog /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/training/courses/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><CourseDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/training/courses/:id/lesson/:lessonId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><LessonViewer /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/training/admin" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingAdmin /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/analytics" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Analytics /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/investor-portal" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorPortal /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="/quickbooks" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooks /></FeatureGate></MainLayout></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="/" element={<ProtectedRoute><MainLayout><Overview /></MainLayout></ProtectedRoute>} />
+                <Route path="/houses" element={<ProtectedRoute><MainLayout><Houses /></MainLayout></ProtectedRoute>} />
+                <Route path="/houses/:id" element={<ProtectedRoute><MainLayout><HouseDetail /></MainLayout></ProtectedRoute>} />
+                <Route path="/residents" element={<ProtectedRoute><MainLayout><Residents /></MainLayout></ProtectedRoute>} />
+                <Route path="/payments" element={<ProtectedRoute><MainLayout><Payments /></MainLayout></ProtectedRoute>} />
+                <Route path="/notices" element={<ProtectedRoute><MainLayout><Notices /></MainLayout></ProtectedRoute>} />
+                <Route path="/messages" element={<ProtectedRoute><MainLayout><Messages /></MainLayout></ProtectedRoute>} />
+                <Route path="/chores" element={<ProtectedRoute><MainLayout><Chores /></MainLayout></ProtectedRoute>} />
+                <Route path="/incidents" element={<ProtectedRoute><MainLayout><Incidents /></MainLayout></ProtectedRoute>} />
+                <Route path="/resources" element={<ProtectedRoute><MainLayout><Resources /></MainLayout></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><MainLayout><Settings /></MainLayout></ProtectedRoute>} />
+                <Route path="/staff" element={<ProtectedRoute><MainLayout><Staff /></MainLayout></ProtectedRoute>} />
+                <Route path="/staff/scheduling" element={<ProtectedRoute><MainLayout><StaffScheduling /></MainLayout></ProtectedRoute>} />
+                <Route path="/drug-tests" element={<ProtectedRoute><MainLayout><DrugTests /></MainLayout></ProtectedRoute>} />
+                <Route path="/recovery" element={<ProtectedRoute><MainLayout><Recovery /></MainLayout></ProtectedRoute>} />
+                <Route path="/documents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><Documents /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/documents/generate/:templateId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_DOCUMENT_TEMPLATES"><DocumentGenerate /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/checklists" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><Checklists /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/checklists/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CHECKLISTS"><ChecklistDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/emergency" element={<ProtectedRoute><MainLayout><Emergency /></MainLayout></ProtectedRoute>} />
+                <Route path="/accreditation" element={<ProtectedRoute><MainLayout><Accreditation /></MainLayout></ProtectedRoute>} />
+                <Route path="/community-engagement" element={<ProtectedRoute><MainLayout><CommunityEngagement /></MainLayout></ProtectedRoute>} />
+                <Route path="/expenses" element={<ProtectedRoute><MainLayout><Expenses /></MainLayout></ProtectedRoute>} />
+                <Route path="/intake" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INTAKE"><Intake /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/crm" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRM /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/crm/contacts/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMContactDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/crm/referrals" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_CRM"><CRMReferrals /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/maintenance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><Maintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/maintenance/budgets" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><MaintenanceBudgets /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/maintenance/preventive" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_MAINTENANCE"><PreventiveMaintenance /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/onboarding" element={<ProtectedRoute><MainLayout><OperatorOnboarding /></MainLayout></ProtectedRoute>} />
+                <Route path="/startup" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizardList /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/startup/:wizardId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_STARTUP_WIZARD"><StartupWizard /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/training" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingHub /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/training/courses" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><CoursesCatalog /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/training/courses/:id" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><CourseDetail /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/training/courses/:id/lesson/:lessonId" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><LessonViewer /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/training/admin" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_LMS"><TrainingAdmin /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Analytics /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/analytics/marketing" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><MarketingAnalytics /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/investor-portal" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorPortal /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/investor-portal/investors" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><InvestorManagement /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/projections" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><Projections /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/quickbooks" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooks /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/quickbooks/settings" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksSettings /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/quickbooks/sync" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksSyncDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/quickbooks/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksReports /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/alumni" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ALUMNI"><AlumniNetwork /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/agents" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><AgentHub /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/agents/activity" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><AgentActivityLog /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/compliance" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_AI_AGENTS"><ComplianceDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/notification-settings" element={<ProtectedRoute><MainLayout><NotificationSettings /></MainLayout></ProtectedRoute>} />
+                <Route path="/messages/templates" element={<ProtectedRoute><MainLayout><MessageTemplateManager /></MainLayout></ProtectedRoute>} />
+                <Route path="/portfolio" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_INVESTOR_PORTAL"><PortfolioView /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/occupancy" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_OCCUPANCY_OPTIMIZER"><OccupancyDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_REPORTS"><ReportCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/communications" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/communications/history" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationHistory /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/communications/templates" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationTemplates /></FeatureGate></MainLayout></ProtectedRoute>} />
+                <Route path="/audit-log" element={<ProtectedRoute><MainLayout><AuditLog /></MainLayout></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <AssistantPanel />
+              <AssistantFAB />
+            </AssistantProvider>
           </UserRoleProvider>
         </BrowserRouter>
       </TooltipProvider>
