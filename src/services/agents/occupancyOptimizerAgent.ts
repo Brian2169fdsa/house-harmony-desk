@@ -58,7 +58,7 @@ export async function analyzeVacancy(): Promise<VacancyAnalysis> {
     { data: rooms },
     { data: invoices },
   ] = await Promise.all([
-    supabase.from("beds").select("id, label, status, room_id, rooms(id, house_id)"),
+    supabase.from("beds").select("id, label, status, room_id, updated_at, rooms(id, house_id)"),
     supabase.from("houses").select("id, name"),
     supabase.from("rooms").select("id, name, house_id"),
     supabase.from("invoices").select("house_id, amount_cents").eq("status", "paid"),
@@ -68,6 +68,7 @@ export async function analyzeVacancy(): Promise<VacancyAnalysis> {
   const allHouses  = (houses ?? []) as any[];
   const allRooms   = (rooms ?? []) as any[];
   const allInvoices = (invoices ?? []) as any[];
+  const now = Date.now();
 
   const byHouse: HouseVacancy[] = allHouses.map((house) => {
     const houseBeds    = allBeds.filter((b) => b.rooms?.house_id === house.id);
@@ -85,12 +86,17 @@ export async function analyzeVacancy(): Promise<VacancyAnalysis> {
 
     const vacantBeds: VacantBedInfo[] = houseBeds
       .filter((b) => b.status === "available")
-      .map((b) => ({
-        bedId:     b.id,
-        bedLabel:  b.label,
-        roomName:  allRooms.find((r) => r.id === b.room_id)?.name ?? "Room",
-        daysVacant: Math.floor(Math.random() * 18) + 1, // placeholder — real data from availability_log
-      }));
+      .map((b) => {
+        // Calculate days vacant from the bed's updated_at timestamp (set when status changed)
+        const updatedAt = b.updated_at ? new Date(b.updated_at).getTime() : now;
+        const daysVacant = Math.max(1, Math.floor((now - updatedAt) / 86_400_000));
+        return {
+          bedId:     b.id,
+          bedLabel:  b.label,
+          roomName:  allRooms.find((r) => r.id === b.room_id)?.name ?? "Room",
+          daysVacant,
+        };
+      });
 
     return {
       houseId:          house.id,

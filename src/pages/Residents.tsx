@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   Table,
   TableBody,
@@ -60,6 +62,8 @@ export default function Residents() {
       return data || [];
     },
   });
+
+  const { paginatedItems: paginatedResidents, pagination } = usePagination(residents ?? [], 20);
 
   function getRoomBed(resident: NonNullable<typeof residents>[number]) {
     const bed = (resident as any).bed;
@@ -191,7 +195,7 @@ export default function Residents() {
               </TableHeader>
               <TableBody>
                 {residents && residents.length > 0 ? (
-                  residents.map((resident) => (
+                  paginatedResidents.map((resident) => (
                     <TableRow key={resident.id}>
                       <TableCell className="font-medium">{resident.name}</TableCell>
                       <TableCell>{getRoomBed(resident)}</TableCell>
@@ -251,6 +255,7 @@ export default function Residents() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls pagination={pagination} />
         </CardContent>
       </Card>
 

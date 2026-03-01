@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import {
   Table,
   TableBody,
@@ -97,6 +99,8 @@ export default function Payments() {
       return (data ?? []) as Invoice[];
     },
   });
+
+  const { paginatedItems: paginatedInvoices, pagination } = usePagination(invoices, 20);
 
   // Fetch residents for the create dialog dropdown
   const { data: residents = [] } = useQuery({
@@ -275,7 +279,7 @@ export default function Payments() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice) => (
+                  paginatedInvoices.map((invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-medium">
                         {invoice.residents?.name ?? "—"}
@@ -309,6 +313,7 @@ export default function Payments() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls pagination={pagination} />
         </CardContent>
       </Card>
 

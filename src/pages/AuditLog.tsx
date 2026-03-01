@@ -40,6 +40,8 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow, subDays } from "date-fns";
 import type { Json } from "@/integrations/supabase/types";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 
 interface AuditEntry {
   id: string;
@@ -145,6 +147,8 @@ export default function AuditLog() {
       return entityMatch && actionMatch && searchMatch;
     });
   }, [auditEntries, filterEntity, filterAction, searchQuery]);
+
+  const { paginatedItems, pagination } = usePagination(filtered, 25);
 
   const todayCount = auditEntries.filter(
     (e) => format(new Date(e.created_at), "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
@@ -293,7 +297,7 @@ export default function AuditLog() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((entry) => {
+                {paginatedItems.map((entry) => {
                   const newObj =
                     typeof entry.new_value === "object" && entry.new_value !== null
                       ? (entry.new_value as Record<string, unknown>)
@@ -345,6 +349,7 @@ export default function AuditLog() {
               </TableBody>
             </Table>
           )}
+          <PaginationControls pagination={pagination} />
         </CardContent>
       </Card>
 

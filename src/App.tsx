@@ -9,65 +9,67 @@ import { UserRoleProvider } from "./contexts/UserRoleContext";
 import { AssistantProvider } from "./contexts/AssistantContext";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
 import { AssistantFAB } from "./components/assistant/AssistantFAB";
-import Overview from "./pages/Overview";
-import Houses from "./pages/Houses";
-import HouseDetail from "./pages/HouseDetail";
-import Residents from "./pages/Residents";
-import Payments from "./pages/Payments";
-import Notices from "./pages/Notices";
-import Messages from "./pages/Messages";
-import Chores from "./pages/Chores";
-import Incidents from "./pages/Incidents";
-import Resources from "./pages/Resources";
-import Settings from "./pages/Settings";
-import Intake from "./pages/Intake";
-import CRM from "./pages/CRM";
-import CRMContactDetail from "./pages/CRMContactDetail";
-import CRMReferrals from "./pages/CRMReferrals";
-import Maintenance from "./pages/Maintenance";
-import StartupWizardList from "./pages/StartupWizardList";
-import StartupWizard from "./pages/StartupWizard";
-import TrainingHub from "./pages/TrainingHub";
-import CoursesCatalog from "./pages/CoursesCatalog";
-import CourseDetail from "./pages/CourseDetail";
-import LessonViewer from "./pages/LessonViewer";
-import TrainingAdmin from "./pages/TrainingAdmin";
-import Analytics from "./pages/Analytics";
-import InvestorPortal from "./pages/InvestorPortal";
-import Projections from "./pages/Projections";
-import QuickBooks from "./pages/QuickBooks";
-import Staff from "./pages/Staff";
-import StaffScheduling from "./pages/StaffScheduling";
-import InvestorManagement from "./pages/InvestorManagement";
-import MaintenanceBudgets from "./pages/MaintenanceBudgets";
-import PreventiveMaintenance from "./pages/PreventiveMaintenance";
-import AlumniNetwork from "./pages/AlumniNetwork";
-import AgentHub from "./pages/AgentHub";
-import AgentActivityLog from "./pages/AgentActivityLog";
-import ComplianceDashboard from "./pages/ComplianceDashboard";
-import MarketingAnalytics from "./pages/MarketingAnalytics";
-import NotificationSettings from "./pages/NotificationSettings";
-import QuickBooksSettings from "./pages/QuickBooksSettings";
-import QuickBooksSyncDashboard from "./pages/QuickBooksSyncDashboard";
-import QuickBooksReports from "./pages/QuickBooksReports";
-import MessageTemplateManager from "./pages/MessageTemplateManager";
-import PortfolioView from "./pages/PortfolioView";
-import DrugTests from "./pages/DrugTests";
-import Recovery from "./pages/Recovery";
-import Documents from "./pages/Documents";
-import Checklists from "./pages/Checklists";
-import ChecklistDetail from "./pages/ChecklistDetail";
-import DocumentGenerate from "./pages/DocumentGenerate";
-import Emergency from "./pages/Emergency";
-import OccupancyDashboard from "./pages/OccupancyDashboard";
-import ReportCenter from "./pages/ReportCenter";
-import CommunicationCenter from "./pages/CommunicationCenter";
-import CommunicationHistory from "./pages/CommunicationHistory";
-import CommunicationTemplates from "./pages/CommunicationTemplates";
-import AuditLog from "./pages/AuditLog";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+
+// ─── Lazy-loaded page components (code-splitting) ─────────────────────────
+const Overview = lazy(() => import("./pages/Overview"));
+const Houses = lazy(() => import("./pages/Houses"));
+const HouseDetail = lazy(() => import("./pages/HouseDetail"));
+const Residents = lazy(() => import("./pages/Residents"));
+const Payments = lazy(() => import("./pages/Payments"));
+const Notices = lazy(() => import("./pages/Notices"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Chores = lazy(() => import("./pages/Chores"));
+const Incidents = lazy(() => import("./pages/Incidents"));
+const Resources = lazy(() => import("./pages/Resources"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Intake = lazy(() => import("./pages/Intake"));
+const CRM = lazy(() => import("./pages/CRM"));
+const CRMContactDetail = lazy(() => import("./pages/CRMContactDetail"));
+const CRMReferrals = lazy(() => import("./pages/CRMReferrals"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const StartupWizardList = lazy(() => import("./pages/StartupWizardList"));
+const StartupWizard = lazy(() => import("./pages/StartupWizard"));
+const TrainingHub = lazy(() => import("./pages/TrainingHub"));
+const CoursesCatalog = lazy(() => import("./pages/CoursesCatalog"));
+const CourseDetail = lazy(() => import("./pages/CourseDetail"));
+const LessonViewer = lazy(() => import("./pages/LessonViewer"));
+const TrainingAdmin = lazy(() => import("./pages/TrainingAdmin"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const InvestorPortal = lazy(() => import("./pages/InvestorPortal"));
+const Projections = lazy(() => import("./pages/Projections"));
+const QuickBooks = lazy(() => import("./pages/QuickBooks"));
+const Staff = lazy(() => import("./pages/Staff"));
+const StaffScheduling = lazy(() => import("./pages/StaffScheduling"));
+const InvestorManagement = lazy(() => import("./pages/InvestorManagement"));
+const MaintenanceBudgets = lazy(() => import("./pages/MaintenanceBudgets"));
+const PreventiveMaintenance = lazy(() => import("./pages/PreventiveMaintenance"));
+const AlumniNetwork = lazy(() => import("./pages/AlumniNetwork"));
+const AgentHub = lazy(() => import("./pages/AgentHub"));
+const AgentActivityLog = lazy(() => import("./pages/AgentActivityLog"));
+const ComplianceDashboard = lazy(() => import("./pages/ComplianceDashboard"));
+const MarketingAnalytics = lazy(() => import("./pages/MarketingAnalytics"));
+const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
+const QuickBooksSettings = lazy(() => import("./pages/QuickBooksSettings"));
+const QuickBooksSyncDashboard = lazy(() => import("./pages/QuickBooksSyncDashboard"));
+const QuickBooksReports = lazy(() => import("./pages/QuickBooksReports"));
+const MessageTemplateManager = lazy(() => import("./pages/MessageTemplateManager"));
+const PortfolioView = lazy(() => import("./pages/PortfolioView"));
+const DrugTests = lazy(() => import("./pages/DrugTests"));
+const Recovery = lazy(() => import("./pages/Recovery"));
+const Documents = lazy(() => import("./pages/Documents"));
+const Checklists = lazy(() => import("./pages/Checklists"));
+const ChecklistDetail = lazy(() => import("./pages/ChecklistDetail"));
+const DocumentGenerate = lazy(() => import("./pages/DocumentGenerate"));
+const Emergency = lazy(() => import("./pages/Emergency"));
+const OccupancyDashboard = lazy(() => import("./pages/OccupancyDashboard"));
+const ReportCenter = lazy(() => import("./pages/ReportCenter"));
+const CommunicationCenter = lazy(() => import("./pages/CommunicationCenter"));
+const CommunicationHistory = lazy(() => import("./pages/CommunicationHistory"));
+const CommunicationTemplates = lazy(() => import("./pages/CommunicationTemplates"));
+const AuditLog = lazy(() => import("./pages/AuditLog"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 
@@ -136,6 +138,7 @@ const App = () => {
         <BrowserRouter>
           <UserRoleProvider>
             <AssistantProvider>
+            <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>}>
             <Routes>
               <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
 
@@ -196,6 +199,7 @@ const App = () => {
               <Route path="/audit-log" element={<ProtectedRoute><MainLayout><AuditLog /></MainLayout></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             <AssistantPanel />
             <AssistantFAB />
             </AssistantProvider>
