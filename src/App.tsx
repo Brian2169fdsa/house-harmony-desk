@@ -191,6 +191,7 @@ const App = () => {
               <Route path="/quickbooks/sync" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksSyncDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/quickbooks/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_QUICKBOOKS"><QuickBooksReports /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/messages/templates" element={<ProtectedRoute><MainLayout><MessageTemplateManager /></MainLayout></ProtectedRoute>} />
+              <Route path="/portfolio" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_ANALYTICS"><PortfolioView /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/occupancy" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_OCCUPANCY_OPTIMIZER"><OccupancyDashboard /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_REPORTS"><ReportCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
               <Route path="/communications" element={<ProtectedRoute><MainLayout><FeatureGate flag="ENABLE_COMMUNICATIONS"><CommunicationCenter /></FeatureGate></MainLayout></ProtectedRoute>} />
