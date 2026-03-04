@@ -39,6 +39,7 @@ import { toast } from "@/hooks/use-toast";
 import { useUserRole, StaffRole } from "@/contexts/UserRoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 import { logAudit } from "@/lib/audit";
+import { sendEmail, staffInvitationEmail } from "@/lib/email";
 
 const ROLES: { value: StaffRole; label: string }[] = [
   { value: "owner", label: "Owner" },
@@ -100,6 +101,19 @@ export default function Staff() {
       if (error) throw error;
       await logAudit("INVITE", "staff_invitations", undefined, {
         new: { email: inviteEmail, role: inviteRole },
+      });
+
+      // Send invitation email (best-effort — doesn't block if Edge Function is not deployed)
+      const appUrl = window.location.origin;
+      const emailTemplate = staffInvitationEmail(
+        inviteEmail.split("@")[0],
+        inviteRole,
+        `${appUrl}/auth`
+      );
+      await sendEmail({
+        to: inviteEmail.trim().toLowerCase(),
+        ...emailTemplate,
+        metadata: { role: inviteRole },
       });
     },
     onSuccess: () => {

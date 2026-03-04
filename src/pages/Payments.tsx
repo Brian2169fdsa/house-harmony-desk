@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -66,6 +68,7 @@ export default function Payments() {
   const [showMarkPaidDialog, setShowMarkPaidDialog] = useState<Invoice | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const pagination = usePagination(25);
 
   // Form state for creating invoice
   const [form, setForm] = useState({
@@ -82,14 +85,26 @@ export default function Payments() {
     reference_number: "",
   });
 
-  // Fetch all invoices with resident info
+  const { data: totalCount = 0 } = useQuery({
+    queryKey: ["invoices-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  // Fetch invoices with resident info (paginated)
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices"],
+    queryKey: ["invoices", pagination.from, pagination.to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
         .select("*, residents(name)")
-        .order("due_date", { ascending: false });
+        .order("due_date", { ascending: false })
+        .range(pagination.from, pagination.to);
       if (error) throw error;
       return (data ?? []) as Invoice[];
     },
@@ -304,6 +319,13 @@ export default function Payments() {
               </TableBody>
             </Table>
           )}
+          <Pagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={totalCount}
+            onPrevPage={pagination.prevPage}
+            onNextPage={pagination.nextPage}
+          />
         </CardContent>
       </Card>
 

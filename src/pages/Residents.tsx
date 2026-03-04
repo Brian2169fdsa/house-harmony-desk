@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -62,9 +64,21 @@ export default function Residents() {
   const [editForm, setEditForm] = useState({ name: "", status: "Active", lease_start: "", lease_end: "" });
   const [addForm, setAddForm] = useState({ name: "", status: "Active", lease_start: "", lease_end: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const pagination = usePagination(25);
+
+  const { data: totalCount = 0 } = useQuery({
+    queryKey: ["residents-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("residents")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const { data: residents, isLoading } = useQuery({
-    queryKey: ["residents"],
+    queryKey: ["residents", pagination.from, pagination.to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("residents")
@@ -78,7 +92,8 @@ export default function Residents() {
             )
           )
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(pagination.from, pagination.to);
       if (error) throw error;
       return data || [];
     },
@@ -348,6 +363,13 @@ export default function Residents() {
               </TableBody>
             </Table>
           )}
+          <Pagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={totalCount}
+            onPrevPage={pagination.prevPage}
+            onNextPage={pagination.nextPage}
+          />
         </CardContent>
       </Card>
 

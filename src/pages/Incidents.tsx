@@ -42,6 +42,8 @@ import {
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 
 export default function Incidents() {
   const queryClient = useQueryClient();
@@ -54,14 +56,27 @@ export default function Incidents() {
     description: "",
     severity: "medium",
   });
+  const pagination = usePagination(25);
+
+  const { data: totalCount = 0 } = useQuery({
+    queryKey: ["incidents-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("incidents")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
 
   const { data: incidents = [] } = useQuery({
-    queryKey: ["incidents"],
+    queryKey: ["incidents", pagination.from, pagination.to],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("incidents")
         .select("*, residents(name), houses(name)")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(pagination.from, pagination.to);
       if (error) throw error;
       return data;
     },
@@ -406,6 +421,13 @@ export default function Incidents() {
               </TableBody>
             </Table>
           )}
+          <Pagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            totalCount={totalCount}
+            onPrevPage={pagination.prevPage}
+            onNextPage={pagination.nextPage}
+          />
         </CardContent>
       </Card>
 
