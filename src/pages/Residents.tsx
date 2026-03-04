@@ -23,8 +23,28 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, MoreHorizontal, FileText, Upload, Trash2, ExternalLink } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, MoreHorizontal, FileText, Upload, Trash2, ExternalLink, Pencil, Users } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -34,12 +54,13 @@ export default function Residents() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docsOpen, setDocsOpen] = useState(false);
-  const [selectedResident, setSelectedResident] = useState<{ id: string; name: string } | null>(
-    null
-  );
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [selectedResident, setSelectedResident] = useState<{ id: string; name: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", status: "Active", lease_start: "", lease_end: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Fetch residents with bed/room/house join
   const { data: residents, isLoading } = useQuery({
     queryKey: ["residents"],
     queryFn: async () => {
@@ -69,7 +90,6 @@ export default function Residents() {
     return `${room.name} · ${bed.label}`;
   }
 
-  // Fetch documents for selected resident
   const { data: documents, refetch: refetchDocs } = useQuery({
     queryKey: ["resident-documents", selectedResident?.id],
     enabled: !!selectedResident?.id,
@@ -102,9 +122,56 @@ export default function Residents() {
     },
   });
 
+  const updateResident = useMutation({
+    mutationFn: async () => {
+      if (!editingId) return;
+      const { error } = await supabase
+        .from("residents")
+        .update({
+          name: editForm.name.trim(),
+          status: editForm.status,
+          lease_start: editForm.lease_start || null,
+          lease_end: editForm.lease_end || null,
+        })
+        .eq("id", editingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["residents"] });
+      toast.success("Resident updated");
+      setEditOpen(false);
+      setEditingId(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteResident = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("residents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["residents"] });
+      toast.success("Resident removed");
+      setDeleteTarget(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const openDocs = (resident: { id: string; name: string }) => {
     setSelectedResident(resident);
     setDocsOpen(true);
+  };
+
+  const openEdit = (resident: any) => {
+    setEditingId(resident.id);
+    setEditForm({
+      name: resident.name,
+      status: resident.status ?? "Active",
+      lease_start: resident.lease_start ?? "",
+      lease_end: resident.lease_end ?? "",
+    });
+    setEditOpen(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +243,14 @@ export default function Residents() {
         <CardContent>
           {isLoading ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Loading residents…</p>
+          ) : !residents || residents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-12 w-12 text-muted-foreground/40 mb-4" />
+              <h3 className="text-lg font-medium">No residents yet</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Add your first resident to start managing profiles.
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -190,69 +265,146 @@ export default function Residents() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {residents && residents.length > 0 ? (
-                  residents.map((resident) => (
-                    <TableRow key={resident.id}>
-                      <TableCell className="font-medium">{resident.name}</TableCell>
-                      <TableCell>{getRoomBed(resident)}</TableCell>
-                      <TableCell>{resident.lease_start ?? "—"}</TableCell>
-                      <TableCell>{resident.lease_end ?? "—"}</TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            resident.balance && resident.balance > 0
-                              ? "text-destructive font-semibold"
-                              : ""
-                          }
-                        >
-                          {resident.balance ? `$${resident.balance.toLocaleString()}` : "$0"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            resident.status === "Active" ? "default" : "destructive"
-                          }
-                        >
-                          {resident.status ?? "Active"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem>Send Message</DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                openDocs({ id: resident.id, name: resident.name })
-                              }
-                            >
-                              <FileText className="mr-2 h-4 w-4" />
-                              Documents
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No residents found
+                {residents.map((resident) => (
+                  <TableRow key={resident.id}>
+                    <TableCell className="font-medium">{resident.name}</TableCell>
+                    <TableCell>{getRoomBed(resident)}</TableCell>
+                    <TableCell>{resident.lease_start ?? "—"}</TableCell>
+                    <TableCell>{resident.lease_end ?? "—"}</TableCell>
+                    <TableCell>
+                      <span
+                        className={
+                          resident.balance && resident.balance > 0
+                            ? "text-destructive font-semibold"
+                            : ""
+                        }
+                      >
+                        {resident.balance ? `$${resident.balance.toLocaleString()}` : "$0"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          resident.status === "Active" ? "default" : "destructive"
+                        }
+                      >
+                        {resident.status ?? "Active"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(resident)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              openDocs({ id: resident.id, name: resident.name })
+                            }
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Documents
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget({ id: resident.id, name: resident.name })}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remove Resident
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )}
+                ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Resident Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Resident</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={editForm.status}
+                onValueChange={(v) => setEditForm({ ...editForm, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Discharged">Discharged</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Lease Start</Label>
+              <Input
+                type="date"
+                value={editForm.lease_start}
+                onChange={(e) => setEditForm({ ...editForm, lease_start: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Lease End</Label>
+              <Input
+                type="date"
+                value={editForm.lease_end}
+                onChange={(e) => setEditForm({ ...editForm, lease_end: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button onClick={() => updateResident.mutate()} disabled={updateResident.isPending}>
+                {updateResident.isPending ? "Saving…" : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this resident record. Documents and associated data will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteResident.mutate(deleteTarget.id)}
+            >
+              {deleteResident.isPending ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Documents Dialog */}
       <Dialog open={docsOpen} onOpenChange={setDocsOpen}>

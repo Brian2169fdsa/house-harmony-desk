@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,27 +16,32 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
 
 function MarkdownContent({ content }: { content: string }) {
-  // Simple markdown-to-HTML renderer for basic formatting
-  const html = content
-    .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-muted pl-4 my-2 text-muted-foreground italic">$1</blockquote>')
-    .replace(/^- (.+)$/gm, '<li class="ml-4 mb-1">• $1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 mb-1 list-decimal list-inside">$1</li>')
-    .replace(/`(.+?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>')
-    .replace(/\[ \](.+)$/gm, '<div class="flex items-start gap-2 my-1"><span>☐</span><span>$1</span></div>')
-    .replace(/\[x\](.+)$/gm, '<div class="flex items-start gap-2 my-1"><span>☑</span><span>$1</span></div>')
-    .replace(/\n\n/g, "</p><p class=\"mb-3\">")
-    .replace(/\n/g, "<br/>");
+  const sanitizedHtml = useMemo(() => {
+    const html = content
+      .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-muted pl-4 my-2 text-muted-foreground italic">$1</blockquote>')
+      .replace(/^- (.+)$/gm, '<li class="ml-4 mb-1">• $1</li>')
+      .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 mb-1 list-decimal list-inside">$1</li>')
+      .replace(/`(.+?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm font-mono">$1</code>')
+      .replace(/\[ \](.+)$/gm, '<div class="flex items-start gap-2 my-1"><span>☐</span><span>$1</span></div>')
+      .replace(/\[x\](.+)$/gm, '<div class="flex items-start gap-2 my-1"><span>☑</span><span>$1</span></div>')
+      .replace(/\n\n/g, "</p><p class=\"mb-3\">")
+      .replace(/\n/g, "<br/>");
+    return DOMPurify.sanitize(`<p class="mb-3">${html}</p>`, {
+      ADD_ATTR: ["class"],
+    });
+  }, [content]);
 
   return (
     <div
       className="prose prose-sm max-w-none text-sm leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: `<p class="mb-3">${html}</p>` }}
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
 }

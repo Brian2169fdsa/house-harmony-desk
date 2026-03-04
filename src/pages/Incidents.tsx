@@ -29,13 +29,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 export default function Incidents() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: string } | null>(null);
   const [formData, setFormData] = useState({
     house_id: "",
     resident_id: "",
@@ -117,6 +128,21 @@ export default function Incidents() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       toast({ title: "Status updated" });
+    },
+  });
+
+  const deleteIncident = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("incidents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      toast({ title: "Incident deleted" });
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete incident", variant: "destructive" });
     },
   });
 
@@ -324,6 +350,7 @@ export default function Incidents() {
                   <TableHead>Severity</TableHead>
                   <TableHead>Reported</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -364,6 +391,16 @@ export default function Incidents() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget({ id: incident.id, type: incident.type })}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -371,6 +408,27 @@ export default function Incidents() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this incident?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the "{deleteTarget?.type}" incident record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteIncident.mutate(deleteTarget.id)}
+            >
+              {deleteIncident.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

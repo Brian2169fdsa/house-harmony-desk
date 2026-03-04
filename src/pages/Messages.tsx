@@ -38,6 +38,32 @@ export default function Messages() {
     });
   }, []);
 
+  // Realtime: subscribe to new messages in the selected thread
+  useEffect(() => {
+    if (!selectedThreadId) return;
+    const channel = supabase
+      .channel(`messages-${selectedThreadId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `thread_id=eq.${selectedThreadId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ["messages", selectedThreadId],
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedThreadId, queryClient]);
+
   const { data: threads = [] } = useQuery({
     queryKey: ["message_threads"],
     queryFn: async () => {

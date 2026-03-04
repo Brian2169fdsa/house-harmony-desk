@@ -19,10 +19,19 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, "..");
 const MIGRATIONS_DIR = join(PROJECT_ROOT, "supabase", "migrations");
-const PROJECT_REF = "ywcaaoakdchfhsydhqbx";
-const SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3Y2Fhb2FrZGNoZmhzeWRocWJ4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjA3NzMxOCwiZXhwIjoyMDg3NjUzMzE4fQ.1TSvUQVQgT0eK4-pLR0FxJcNCubP0-Lgx8ijulzEFoc";
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF || "ywcaaoakdchfhsydhqbx";
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_URL = `https://${PROJECT_REF}.supabase.co`;
+
+if (!SERVICE_KEY) {
+  console.error(
+    "ERROR: SUPABASE_SERVICE_ROLE_KEY environment variable is required.\n" +
+      "  Set it before running this script:\n" +
+      "  SUPABASE_SERVICE_ROLE_KEY=<key> node scripts/setup-db.mjs [DB_PASSWORD]\n\n" +
+      "  Find the service_role key in your Supabase project settings under API."
+  );
+  process.exit(1);
+}
 
 const dbPassword = process.argv[2] || process.env.SUPABASE_DB_PASSWORD;
 
