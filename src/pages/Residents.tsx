@@ -55,10 +55,12 @@ export default function Residents() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docsOpen, setDocsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [selectedResident, setSelectedResident] = useState<{ id: string; name: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", status: "Active", lease_start: "", lease_end: "" });
+  const [addForm, setAddForm] = useState({ name: "", status: "Active", lease_start: "", lease_end: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: residents, isLoading } = useQuery({
@@ -141,6 +143,26 @@ export default function Residents() {
       toast.success("Resident updated");
       setEditOpen(false);
       setEditingId(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const createResident = useMutation({
+    mutationFn: async () => {
+      if (!addForm.name.trim()) throw new Error("Name is required");
+      const { error } = await supabase.from("residents").insert({
+        name: addForm.name.trim(),
+        status: addForm.status,
+        lease_start: addForm.lease_start || null,
+        lease_end: addForm.lease_end || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["residents"] });
+      toast.success("Resident added");
+      setAddOpen(false);
+      setAddForm({ name: "", status: "Active", lease_start: "", lease_end: "" });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -230,7 +252,7 @@ export default function Residents() {
           <h1 className="text-3xl font-bold text-foreground">Residents</h1>
           <p className="text-muted-foreground">Manage resident profiles and leases</p>
         </div>
-        <Button>
+        <Button onClick={() => setAddOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add Resident
         </Button>
@@ -328,6 +350,62 @@ export default function Residents() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Resident Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Resident</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Name *</Label>
+              <Input
+                value={addForm.name}
+                onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                placeholder="Full name"
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={addForm.status}
+                onValueChange={(v) => setAddForm({ ...addForm, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Lease Start</Label>
+              <Input
+                type="date"
+                value={addForm.lease_start}
+                onChange={(e) => setAddForm({ ...addForm, lease_start: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Lease End</Label>
+              <Input
+                type="date"
+                value={addForm.lease_end}
+                onChange={(e) => setAddForm({ ...addForm, lease_end: e.target.value })}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button onClick={() => createResident.mutate()} disabled={createResident.isPending}>
+                {createResident.isPending ? "Adding…" : "Add Resident"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Resident Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

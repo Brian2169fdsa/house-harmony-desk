@@ -9,7 +9,8 @@ import {
   FileText,
   Home,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -45,6 +46,34 @@ function formatCents(cents: number): string {
 }
 
 export default function Overview() {
+  const queryClient = useQueryClient();
+
+  // Realtime: refresh activity feed on new incidents, residents, invoices
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "incidents" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
+        queryClient.invalidateQueries({ queryKey: ["incidents-overview"] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "residents" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
+        queryClient.invalidateQueries({ queryKey: ["invoices-overview"] });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "maintenance_requests" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
+        queryClient.invalidateQueries({ queryKey: ["maintenance-overview"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const today = new Date();
   const sevenDaysFromNow = new Date(today);
   sevenDaysFromNow.setDate(today.getDate() + 7);

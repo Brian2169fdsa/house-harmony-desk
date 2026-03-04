@@ -163,15 +163,28 @@ export default function QuickBooks() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // ─── Mock connect/disconnect handlers ──────────────────────────────────────
-  const handleConnect = () => {
-    // In production: redirect to QB OAuth2 authorization URL
-    // e.g. https://appcenter.intuit.com/connect/oauth2?...
-    toast.info(
-      "QuickBooks OAuth2 flow requires a backend Supabase Edge Function. " +
-      "In production, this redirects to QuickBooks authorization. " +
-      "A demo connection has been noted below."
-    );
+  // ─── OAuth connect handler ─────────────────────────────────────────────────
+  // Production flow: call Supabase Edge Function to get the OAuth URL, then redirect.
+  // The Edge Function handles token exchange on callback and stores tokens in qb_connections.
+  const handleConnect = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("qb-oauth-url");
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+      // Fallback: Edge Function not deployed yet
+      toast.info(
+        "QuickBooks integration requires the qb-oauth-url Edge Function to be deployed. " +
+        "See supabase/functions/qb-oauth-url for the implementation template."
+      );
+    } catch {
+      toast.info(
+        "QuickBooks integration requires the qb-oauth-url Edge Function to be deployed. " +
+        "See supabase/functions/qb-oauth-url for the implementation template."
+      );
+    }
   };
 
   const handleDisconnect = async () => {

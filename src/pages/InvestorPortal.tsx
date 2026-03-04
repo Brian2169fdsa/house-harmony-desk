@@ -20,6 +20,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { DollarSign, TrendingUp, Home, Download, BarChart2, Percent, AlertCircle } from "lucide-react";
 import { format, subMonths, startOfMonth } from "date-fns";
 import { toast } from "sonner";
@@ -58,6 +60,7 @@ function getLast12Months() {
 export default function InvestorPortal() {
   const months = getLast12Months();
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
+  const [propertyValuePerHouse, setPropertyValuePerHouse] = useState<number>(200000);
 
   // Houses
   const { data: houses = [] } = useQuery({
@@ -142,9 +145,9 @@ export default function InvestorPortal() {
   const noi = totalRevenue - totalExpenses;
   const noiMargin = totalRevenue > 0 ? (noi / totalRevenue) * 100 : 0;
 
-  // Cap rate: annual NOI / property value ($200k per house as placeholder)
+  // Cap rate: annual NOI / property value
   const filteredHouses = selectedHouseId === "all" ? houses : houses.filter((h: any) => h.id === selectedHouseId);
-  const estimatedPropertyValue = filteredHouses.length * 200000;
+  const estimatedPropertyValue = filteredHouses.length * propertyValuePerHouse;
   const capRate = estimatedPropertyValue > 0 ? (noi / estimatedPropertyValue) * 100 : 0;
   const estimatedEquity = estimatedPropertyValue * 0.2;
   const cashOnCash = estimatedEquity > 0 ? (noi / estimatedEquity) * 100 : 0;
@@ -188,7 +191,7 @@ export default function InvestorPortal() {
     const hNoi = hRev - hExpTotal;
     const hOccupied = hBeds.filter((b: any) => b.status === "occupied").length;
     const hOcc = hBeds.length > 0 ? Math.round((hOccupied / hBeds.length) * 100) : 0;
-    const hCapRate = 200000 > 0 ? (hNoi / 200000) * 100 : 0;
+    const hCapRate = propertyValuePerHouse > 0 ? (hNoi / propertyValuePerHouse) * 100 : 0;
     return { ...h, revenue: hRev, expenses: hExpTotal, noi: hNoi, occupancy: hOcc, capRate: hCapRate, occupiedBeds: hOccupied, totalBeds: hBeds.length };
   });
 
@@ -221,6 +224,18 @@ export default function InvestorPortal() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="prop-val" className="text-xs text-muted-foreground whitespace-nowrap">$/house</Label>
+            <Input
+              id="prop-val"
+              type="number"
+              className="w-28 h-9"
+              value={propertyValuePerHouse}
+              onChange={(e) => setPropertyValuePerHouse(Number(e.target.value) || 0)}
+              min={0}
+              step={10000}
+            />
+          </div>
           <Button variant="outline" onClick={handleDownloadReport}>
             <Download className="h-4 w-4 mr-2" />
             Download PDF
@@ -460,7 +475,7 @@ export default function InvestorPortal() {
             <Card>
               <CardHeader><CardTitle>Key Notes</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>• Cap rate uses an estimated property value of $200,000 per house. Replace with actual appraisal values for accuracy.</p>
+                <p>• Cap rate uses the estimated property value per house set in the header (currently {fmt(propertyValuePerHouse)}/house). Adjust to match actual appraisal values.</p>
                 <p>• Revenue reflects invoices marked "paid" in SoberOps.</p>
                 <p>• Expense records must be entered in the Analytics → Expenses section.</p>
                 <p>• Connect QuickBooks in Settings for real-time P&L pulled from your accounting system.</p>
